@@ -190,6 +190,33 @@
       background: var(--accent-strong);
     }
 
+    .difficulty {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin: 0 auto 16px;
+      max-width: 320px;
+    }
+
+    .difficulty button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--muted);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .difficulty button.selected {
+      border-color: rgba(14, 143, 143, 0.45);
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(14, 143, 143, 0.2);
+    }
+
     .hidden {
       display: none;
     }
@@ -243,6 +270,11 @@
       <div class="message" id="message">
         <h1>でっぱり城壁</h1>
         <p>左右どちらかの棚に図形を置いて城壁を作ります。次は出っ張り数が1つ多い図形だけがくっつき、反対側まで届くとクリアです。</p>
+        <div class="difficulty" aria-label="難易度">
+          <button type="button" data-difficulty="easy">EASY</button>
+          <button type="button" data-difficulty="normal" class="selected">NORMAL</button>
+          <button type="button" data-difficulty="hard">HARD</button>
+        </div>
         <button class="start" id="start">スタート</button>
       </div>
     </section>
@@ -259,6 +291,7 @@
     const startButton = document.querySelector("#start");
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
+    const difficultyButtons = document.querySelectorAll("[data-difficulty]");
 
     const colors = {
       3: ["#f06a59", "#9a3029"],
@@ -269,6 +302,33 @@
       8: ["#c66fb5", "#763267"],
       9: ["#8fb640", "#506f1c"],
       10: ["#dd7f42", "#87451e"]
+    };
+
+    const difficultySettings = {
+      easy: {
+        label: "EASY",
+        initialLevel: 1,
+        fixedLevel: 1,
+        spawnEvery: 1220,
+        doubleLevel: Infinity,
+        doubleChance: 0
+      },
+      normal: {
+        label: "NORMAL",
+        initialLevel: 1,
+        fixedLevel: null,
+        spawnEvery: 980,
+        doubleLevel: 7,
+        doubleChance: 0.28
+      },
+      hard: {
+        label: "HARD",
+        initialLevel: 7,
+        fixedLevel: null,
+        spawnEvery: 980,
+        doubleLevel: 7,
+        doubleChance: 0.38
+      }
     };
 
     const state = {
@@ -288,6 +348,7 @@
       score: 0,
       chain: 0,
       chainTimer: 0,
+      difficulty: "normal",
       level: 1,
       running: false,
       paused: false,
@@ -401,17 +462,19 @@
     }
 
     function resetGame() {
+      const settings = difficultySettings[state.difficulty];
       state.pieces = [];
       state.wallPieces = [];
       state.particles = [];
       state.dragging = null;
       state.spawnTimer = 350;
-      state.spawnEvery = 980;
+      state.spawnEvery = settings.spawnEvery;
       state.survivalTime = 0;
       state.score = 0;
       state.chain = 0;
       state.chainTimer = 0;
-      state.level = 1;
+      state.level = settings.initialLevel;
+      updateDifficulty();
       state.running = true;
       state.paused = false;
       state.gameOver = false;
@@ -432,6 +495,12 @@
       scoreEl.textContent = state.score;
       chainEl.textContent = `${Math.floor(wallProgress() * 100)}%`;
       levelEl.textContent = state.level;
+    }
+
+    function updateDifficultyButtons() {
+      difficultyButtons.forEach((button) => {
+        button.classList.toggle("selected", button.dataset.difficulty === state.difficulty);
+      });
     }
 
     function pointerPosition(event) {
@@ -640,10 +709,16 @@
     }
 
     function updateDifficulty() {
+      const settings = difficultySettings[state.difficulty];
+      if (settings.fixedLevel) {
+        state.level = settings.fixedLevel;
+        state.spawnEvery = settings.spawnEvery;
+        return;
+      }
       const scoreLevel = 1 + Math.floor(state.score / 900);
       const timeLevel = 1 + Math.floor(state.survivalTime / 18);
-      state.level = Math.min(14, Math.max(scoreLevel, timeLevel));
-      state.spawnEvery = Math.max(280, 980 - state.level * 58);
+      state.level = Math.min(14, Math.max(settings.initialLevel, scoreLevel, timeLevel));
+      state.spawnEvery = Math.max(280, settings.spawnEvery - state.level * 58);
     }
 
     function canMove(piece) {
@@ -736,8 +811,9 @@
       updateDifficulty();
       state.spawnTimer -= dt * 1000;
       if (state.spawnTimer <= 0) {
+        const settings = difficultySettings[state.difficulty];
         state.pieces.push(createPiece());
-        if (state.level >= 7 && Math.random() < 0.28) {
+        if (state.level >= settings.doubleLevel && Math.random() < settings.doubleChance) {
           state.pieces.push(createPiece());
         }
         state.spawnTimer = state.spawnEvery;
@@ -1020,6 +1096,16 @@
 
     startButton.addEventListener("click", resetGame);
     restartButton.addEventListener("click", resetGame);
+    difficultyButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (state.running && !state.gameOver && !state.cleared) return;
+        state.difficulty = button.dataset.difficulty;
+        state.level = difficultySettings[state.difficulty].initialLevel;
+        state.spawnEvery = difficultySettings[state.difficulty].spawnEvery;
+        updateDifficultyButtons();
+        updateHud();
+      });
+    });
     pauseButton.addEventListener("click", () => {
       if (!state.running || state.gameOver) return;
       state.paused = !state.paused;
@@ -1032,6 +1118,7 @@
     window.addEventListener("resize", resize);
 
     resize();
+    updateDifficultyButtons();
     render();
     requestAnimationFrame(loop);
   </script>
