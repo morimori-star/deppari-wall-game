@@ -48,9 +48,9 @@
 
     .game-shell {
       position: relative;
-      width: min(100%, 980px);
-      height: min(100%, 720px);
-      min-height: 520px;
+      width: min(calc(100vw - 28px), 860px);
+      height: min(calc(100vh - 28px), 640px);
+      min-height: min(520px, calc(100vh - 28px));
       overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.7);
       border-radius: 8px;
@@ -311,7 +311,8 @@
     }
 
     function pieceRadius(lobes) {
-      return Math.max(23, Math.min(36, 22 + lobes * 1.3));
+      const scale = state.width <= 720 ? 0.9 : 0.96;
+      return Math.max(20, Math.min(34, 21 + lobes * 1.18) * scale);
     }
 
     function touchDistance(a, b) {
@@ -342,7 +343,8 @@
     }
 
     function dangerLineY() {
-      return Math.max(170, state.height * 0.68);
+      const ratio = state.width <= 720 ? 0.58 : 0.62;
+      return Math.max(160, state.height * ratio);
     }
 
     function floorY() {
