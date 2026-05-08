@@ -650,6 +650,16 @@
       return piece !== state.dragging && !piece.isWall;
     }
 
+    function isRestingOn(piece, base) {
+      const dx = Math.abs(piece.x - base.x);
+      const dy = piece.y - base.y;
+      const contact = touchDistance(piece, base);
+      const horizontalOverlap = dx <= contact * 0.62;
+      const aboveBase = dy < -piece.radius * 0.28;
+      const closeEnough = Math.hypot(piece.x - base.x, piece.y - base.y) <= contact + 4;
+      return horizontalOverlap && aboveBase && closeEnough;
+    }
+
     function resolveCollisions() {
       for (let i = 0; i < state.pieces.length; i += 1) {
         const a = state.pieces[i];
@@ -706,8 +716,7 @@
           if (piece.supported) continue;
           for (const base of state.pieces) {
             if (piece.isWall || base.isWall || !base.supported || piece === base || piece.y >= base.y) continue;
-            const distance = Math.hypot(piece.x - base.x, piece.y - base.y);
-            if (distance <= touchDistance(piece, base) + 14) {
+            if (isRestingOn(piece, base)) {
               piece.supported = true;
               changed = true;
               break;
