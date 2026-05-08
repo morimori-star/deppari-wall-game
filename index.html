@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>でっぱりマッチ</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #25313d;
+      --muted: #62717f;
+      --panel: rgba(255, 255, 255, 0.82);
+      --line: rgba(37, 49, 61, 0.16);
+      --accent: #0e8f8f;
+      --accent-strong: #087171;
+      --danger: #d25b52;
+      --gold: #e5aa26;
+      font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 14%, rgba(255, 232, 143, 0.52), transparent 24%),
+        radial-gradient(circle at 83% 12%, rgba(107, 196, 166, 0.34), transparent 26%),
+        linear-gradient(160deg, #f8f3e7 0%, #d9e9df 48%, #c9dce4 100%);
+      color: var(--ink);
+      touch-action: none;
+      user-select: none;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 14px;
+    }
+
+    .game-shell {
+      position: relative;
+      width: min(100%, 980px);
+      height: min(100%, 720px);
+      min-height: 520px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 8px;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.25) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.22));
+      background-size: 42px 42px, 42px 42px, 100% 100%;
+      box-shadow: 0 22px 70px rgba(31, 55, 58, 0.22);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    canvas.dragging {
+      cursor: grabbing;
+    }
+
+    .hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill,
+    .button {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(42, 67, 66, 0.1);
+      backdrop-filter: blur(16px);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .button {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      color: var(--accent-strong);
+      font-size: 19px;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background: rgba(255, 255, 255, 0.94);
+      transform: translateY(-1px);
+    }
+
+    .message {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(86%, 430px);
+      transform: translate(-50%, -50%);
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 18px 60px rgba(40, 67, 70, 0.2);
+      text-align: center;
+      backdrop-filter: blur(18px);
+    }
+
+    .message h1 {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 7vw, 46px);
+      letter-spacing: 0;
+      line-height: 1.02;
+    }
+
+    .message p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .start {
+      min-width: 150px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 22px rgba(14, 143, 143, 0.24);
+    }
+
+    .start:hover {
+      background: var(--accent-strong);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+      .app {
+        padding: 0;
+      }
+
+      .game-shell {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        border-radius: 0;
+      }
+
+      .hud {
+        top: max(9px, env(safe-area-inset-top));
+        left: 9px;
+        right: 9px;
+        align-items: flex-start;
+      }
+
+      .stats {
+        max-width: calc(100% - 96px);
+      }
+
+      .pill {
+        min-height: 32px;
+        padding: 6px 9px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="game-shell" aria-label="でっぱりマッチ">
+      <canvas id="game" aria-label="ゲーム画面"></canvas>
+      <div class="hud">
+        <div class="stats">
+          <div class="pill"><span>Score</span><strong id="score">0</strong></div>
+          <div class="pill"><span>Wall</span><strong id="chain">0%</strong></div>
+          <div class="pill"><span>Level</span><strong id="level">1</strong></div>
+        </div>
+        <div class="controls">
+          <button class="button" id="pause" title="一時停止" aria-label="一時停止">Ⅱ</button>
+          <button class="button" id="restart" title="やり直し" aria-label="やり直し">↻</button>
+        </div>
+      </div>
+      <div class="message" id="message">
+        <h1>でっぱり城壁</h1>
+        <p>左右どちらかの棚に図形を置いて城壁を作ります。次は出っ張り数が1つ多い図形だけがくっつき、反対側まで届くとクリアです。</p>
+        <button class="start" id="start">スタート</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.querySelector("#game");
+    const ctx = canvas.getContext("2d");
+    const shell = document.querySelector(".game-shell");
+    const scoreEl = document.querySelector("#score");
+    const chainEl = document.querySelector("#chain");
+    const levelEl = document.querySelector("#level");
+    const message = document.querySelector("#message");
+    const startButton = document.querySelector("#start");
+    const pauseButton = document.querySelector("#pause");
+    const restartButton = document.querySelector("#restart");
+
+    const colors = {
+      3: ["#f06a59", "#9a3029"],
+      4: ["#e6a92e", "#8c6110"],
+      5: ["#4eb37b", "#1d6b43"],
+      6: ["#2f9fc6", "#165d78"],
+      7: ["#7272c8", "#35356f"],
+      8: ["#c66fb5", "#763267"],
+      9: ["#8fb640", "#506f1c"],
+      10: ["#dd7f42", "#87451e"]
+    };
+
+    const state = {
+      width: 0,
+      height: 0,
+      ratio: 1,
+      pieces: [],
+      wallPieces: [],
+      particles: [],
+      dragging: null,
+      dragOffsetX: 0,
+      dragOffsetY: 0,
+      lastTime: 0,
+      spawnTimer: 0,
+      spawnEvery: 1180,
+      survivalTime: 0,
+      score: 0,
+      chain: 0,
+      chainTimer: 0,
+      level: 1,
+      running: false,
+      paused: false,
+      gameOver: false,
+      cleared: false,
+      flash: 0
+    };
+
+    function resize() {
+      const rect = shell.getBoundingClientRect();
+      state.ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      state.width = rect.width;
+      state.height = rect.height;
+      canvas.width = Math.floor(rect.width * state.ratio);
+      canvas.height = Math.floor(rect.height * state.ratio);
+      ctx.setTransform(state.ratio, 0, 0, state.ratio, 0, 0);
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function pieceRadius(lobes) {
+      return Math.max(23, Math.min(36, 22 + lobes * 1.3));
+    }
+
+    function touchDistance(a, b) {
+      return (a.radius + b.radius) * 0.86;
+    }
+
+    function createPiece(x = null, y = null) {
+      const lobes = randomInt(3, 10);
+      const radius = pieceRadius(lobes);
+      return {
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+        x: x ?? randomInt(radius + 12, Math.max(radius + 12, state.width - radius - 12)),
+        y: y ?? -radius - randomInt(0, 160),
+        vx: randomInt(-12, 12),
+        vy: 42 + state.level * 8 + randomInt(0, 16),
+        radius,
+        lobes,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.65,
+        wobble: Math.random() * Math.PI * 2,
+        matched: false,
+        pop: 0,
+        supported: false,
+        isWall: false,
+        wallAnchor: false,
+        wallDirection: 0
+      };
+    }
+
+    function dangerLineY() {
+      return Math.max(170, state.height * 0.68);
+    }
+
+    function floorY() {
+      return state.height - 18;
+    }
+
+    function wallY() {
+      return dangerLineY() - 34;
+    }
+
+    function nextLobes(lobes) {
+      return lobes >= 10 ? 3 : lobes + 1;
+    }
+
+    function shelfTarget(side, piece) {
+      const padding = 26;
+      return {
+        x: side === "left" ? padding + piece.radius : state.width - padding - piece.radius,
+        y: wallY(),
+        direction: side === "left" ? 1 : -1
+      };
+    }
+
+    function shelfEnd(side) {
+      return side === "left" ? 84 : state.width - 84;
+    }
+
+    function wallProgress() {
+      if (!state.wallPieces.length) return 0;
+      const first = state.wallPieces[0];
+      const last = state.wallPieces[state.wallPieces.length - 1];
+      if (first.wallDirection > 0) {
+        return Math.max(0, Math.min(1, (last.x + last.radius - shelfEnd("left")) / (state.width - 168)));
+      }
+      return Math.max(0, Math.min(1, (shelfEnd("right") - (last.x - last.radius)) / (state.width - 168)));
+    }
+
+    function clampToPlayfield(piece) {
+      if (piece.isWall) return;
+      if (piece.x < piece.radius) {
+        piece.x = piece.radius;
+        piece.vx = Math.abs(piece.vx) * 0.35;
+      }
+      if (piece.x > state.width - piece.radius) {
+        piece.x = state.width - piece.radius;
+        piece.vx = -Math.abs(piece.vx) * 0.35;
+      }
+      if (piece.y + piece.radius > floorY()) {
+        piece.y = floorY() - piece.radius;
+        piece.vy = 0;
+        piece.vx *= 0.5;
+        piece.spin *= 0.72;
+      }
+    }
+
+    function resetGame() {
+      state.pieces = [];
+      state.wallPieces = [];
+      state.particles = [];
+      state.dragging = null;
+      state.spawnTimer = 350;
+      state.spawnEvery = 980;
+      state.survivalTime = 0;
+      state.score = 0;
+      state.chain = 0;
+      state.chainTimer = 0;
+      state.level = 1;
+      state.running = true;
+      state.paused = false;
+      state.gameOver = false;
+      state.cleared = false;
+      state.flash = 0;
+      message.querySelector("h1").textContent = "でっぱり城壁";
+      message.querySelector("p").textContent = "左右どちらかの棚に図形を置いて城壁を作ります。次は出っ張り数が1つ多い図形だけがくっつき、反対側まで届くとクリアです。";
+      startButton.textContent = "スタート";
+      pauseButton.textContent = "Ⅱ";
+      for (let i = 0; i < 9; i += 1) {
+        state.pieces.push(createPiece(randomInt(50, state.width - 50), randomInt(-260, -20)));
+      }
+      updateHud();
+      message.classList.add("hidden");
+    }
+
+    function updateHud() {
+      scoreEl.textContent = state.score;
+      chainEl.textContent = `${Math.floor(wallProgress() * 100)}%`;
+      levelEl.textContent = state.level;
+    }
+
+    function pointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      };
+    }
+
+    function hitPiece(x, y) {
+      for (let i = state.pieces.length - 1; i >= 0; i -= 1) {
+        const piece = state.pieces[i];
+        if (piece.isWall) continue;
+        const dx = x - piece.x;
+        const dy = y - piece.y;
+        if (Math.hypot(dx, dy) <= piece.radius + 16) {
+          return piece;
+        }
+      }
+      return null;
+    }
+
+    function onPointerDown(event) {
+      if (!state.running || state.paused || state.gameOver || state.cleared) return;
+      const pos = pointerPosition(event);
+      const piece = hitPiece(pos.x, pos.y);
+      if (!piece) return;
+      state.dragging = piece;
+      state.dragOffsetX = piece.x - pos.x;
+      state.dragOffsetY = piece.y - pos.y;
+      piece.vx = 0;
+      piece.vy = Math.max(10, piece.vy * 0.25);
+      canvas.classList.add("dragging");
+      canvas.setPointerCapture(event.pointerId);
+    }
+
+    function onPointerMove(event) {
+      if (!state.dragging) return;
+      const pos = pointerPosition(event);
+      const piece = state.dragging;
+      const targetX = pos.x + state.dragOffsetX;
+      const targetY = pos.y + state.dragOffsetY;
+      piece.x = Math.max(piece.radius, Math.min(state.width - piece.radius, targetX));
+      piece.y = Math.max(piece.radius, Math.min(state.height - piece.radius, targetY));
+      piece.vx = 0;
+      piece.vy = 18;
+    }
+
+    function onPointerUp(event) {
+      if (state.dragging) {
+        if (!tryAttachToWall(state.dragging)) {
+          state.dragging.vy = Math.max(34, 46 + state.level * 7);
+        }
+      }
+      state.dragging = null;
+      canvas.classList.remove("dragging");
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    function spawnBurst(piece) {
+      const fill = colors[piece.lobes][0];
+      for (let i = 0; i < 16; i += 1) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 55 + Math.random() * 160;
+        state.particles.push({
+          x: piece.x,
+          y: piece.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0.46 + Math.random() * 0.28,
+          age: 0,
+          size: 3 + Math.random() * 5,
+          fill
+        });
+      }
+    }
+
+    function expectedWallLobes() {
+      if (!state.wallPieces.length) return null;
+      return nextLobes(state.wallPieces[state.wallPieces.length - 1].lobes);
+    }
+
+    function nextWallTarget(piece) {
+      if (!state.wallPieces.length) return null;
+      const last = state.wallPieces[state.wallPieces.length - 1];
+      const distance = touchDistance(last, piece) * 0.92;
+      return {
+        x: last.x + last.wallDirection * distance,
+        y: wallY(),
+        direction: last.wallDirection
+      };
+    }
+
+    function makeWallPiece(piece, target, isAnchor) {
+      piece.isWall = true;
+      piece.wallAnchor = isAnchor;
+      piece.wallDirection = target.direction;
+      piece.supported = false;
+      piece.x = target.x;
+      piece.y = target.y;
+      piece.vx = 0;
+      piece.vy = 0;
+      piece.spin = 0;
+      piece.angle = 0;
+      state.wallPieces.push(piece);
+      state.score += isAnchor ? 120 : 180;
+      state.flash = 0.16;
+      updateHud();
+      if (wallProgress() >= 1) {
+        clearGame();
+      }
+    }
+
+    function tryAttachToWall(piece) {
+      if (!piece || piece.isWall) return false;
+      if (!state.wallPieces.length) {
+        const left = shelfTarget("left", piece);
+        const right = shelfTarget("right", piece);
+        const leftDistance = Math.hypot(piece.x - left.x, piece.y - left.y);
+        const rightDistance = Math.hypot(piece.x - right.x, piece.y - right.y);
+        const target = leftDistance <= rightDistance ? left : right;
+        if (Math.min(leftDistance, rightDistance) <= piece.radius + 24) {
+          makeWallPiece(piece, target, true);
+          return true;
+        }
+        return false;
+      }
+
+      if (piece.lobes !== expectedWallLobes()) return false;
+      const target = nextWallTarget(piece);
+      if (Math.hypot(piece.x - target.x, piece.y - target.y) <= piece.radius + 24) {
+        makeWallPiece(piece, target, false);
+        return true;
+      }
+      return false;
+    }
+
+    function handleWallContacts() {
+      const erasedPieces = new Set();
+      const erasedWallPieces = new Set();
+      for (const piece of state.pieces) {
+        if (piece.isWall) continue;
+        tryAttachToWall(piece);
+      }
+
+      for (const piece of state.pieces) {
+        if (piece.isWall) continue;
+        for (const wall of state.wallPieces) {
+          if (wall.wallAnchor || wall.lobes !== piece.lobes) continue;
+          const distance = Math.hypot(piece.x - wall.x, piece.y - wall.y);
+          if (distance <= touchDistance(piece, wall) + 10) {
+            erasedPieces.add(piece.id);
+            erasedWallPieces.add(wall.id);
+            break;
+          }
+        }
+      }
+
+      if (!erasedPieces.size && !erasedWallPieces.size) return;
+      const removed = state.pieces.filter((piece) => erasedPieces.has(piece.id) || erasedWallPieces.has(piece.id));
+      removed.forEach(spawnBurst);
+      state.pieces = state.pieces.filter((piece) => !erasedPieces.has(piece.id) && !erasedWallPieces.has(piece.id));
+      state.wallPieces = state.wallPieces.filter((piece) => !erasedWallPieces.has(piece.id));
+      state.score += erasedPieces.size * 30;
+      state.flash = 0.16;
+      updateHud();
+    }
+
+    function removeMatches() {
+      const matched = new Set();
+      for (let i = 0; i < state.pieces.length; i += 1) {
+        const a = state.pieces[i];
+        if (a.matched || a.isWall) continue;
+        for (let j = i + 1; j < state.pieces.length; j += 1) {
+          const b = state.pieces[j];
+          if (b.matched || b.isWall || a.lobes !== b.lobes) continue;
+          const distance = Math.hypot(a.x - b.x, a.y - b.y);
+          if (distance <= touchDistance(a, b) + 16) {
+            matched.add(a.id);
+            matched.add(b.id);
+            break;
+          }
+        }
+      }
+
+      if (!matched.size) {
+        if (state.chainTimer <= 0 && state.chain !== 0) {
+          state.chain = 0;
+          updateHud();
+        }
+        return;
+      }
+
+      const removed = state.pieces.filter((piece) => matched.has(piece.id));
+      removed.forEach(spawnBurst);
+      state.pieces = state.pieces.filter((piece) => !matched.has(piece.id));
+      state.chain += 1;
+      state.chainTimer = 1.4;
+      state.score += removed.length * 50 * state.chain;
+      updateDifficulty();
+      state.flash = 0.16;
+      updateHud();
+    }
+
+    function updateDifficulty() {
+      const scoreLevel = 1 + Math.floor(state.score / 900);
+      const timeLevel = 1 + Math.floor(state.survivalTime / 18);
+      state.level = Math.min(14, Math.max(scoreLevel, timeLevel));
+      state.spawnEvery = Math.max(280, 980 - state.level * 58);
+    }
+
+    function canMove(piece) {
+      return piece !== state.dragging && !piece.isWall;
+    }
+
+    function resolveCollisions() {
+      for (let i = 0; i < state.pieces.length; i += 1) {
+        const a = state.pieces[i];
+        for (let j = i + 1; j < state.pieces.length; j += 1) {
+          const b = state.pieces[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const distance = Math.max(0.001, Math.hypot(dx, dy));
+          const minDistance = touchDistance(a, b);
+          if (distance < minDistance) {
+            const aCanMove = canMove(a);
+            const bCanMove = canMove(b);
+            if (!aCanMove && !bCanMove) continue;
+            const push = minDistance - distance;
+            const nx = dx / distance;
+            const ny = dy / distance;
+            if (aCanMove) {
+              a.x -= nx * (bCanMove ? push * 0.5 : push);
+              a.y -= ny * (bCanMove ? push * 0.5 : push);
+            }
+            if (bCanMove) {
+              b.x += nx * (aCanMove ? push * 0.5 : push);
+              b.y += ny * (aCanMove ? push * 0.5 : push);
+            }
+            if (aCanMove) {
+              a.vx *= 0.68;
+              a.vy *= 0.46;
+              a.spin *= 0.76;
+            }
+            if (bCanMove) {
+              b.vx *= 0.68;
+              b.vy *= 0.46;
+              b.spin *= 0.76;
+            }
+          }
+        }
+      }
+      for (const piece of state.pieces) {
+        if (piece !== state.dragging) {
+          clampToPlayfield(piece);
+        }
+      }
+    }
+
+    function markSupportedPile() {
+      for (const piece of state.pieces) {
+        piece.supported = !piece.isWall && piece.y + piece.radius >= floorY() - 2;
+      }
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const piece of state.pieces) {
+          if (piece.supported) continue;
+          for (const base of state.pieces) {
+            if (piece.isWall || base.isWall || !base.supported || piece === base || piece.y >= base.y) continue;
+            const distance = Math.hypot(piece.x - base.x, piece.y - base.y);
+            if (distance <= touchDistance(piece, base) + 14) {
+              piece.supported = true;
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    function pileHasCrossedDangerLine() {
+      return state.pieces.some((piece) => !piece.isWall && piece.supported && piece.y - piece.radius <= dangerLineY());
+    }
+
+    function update(dt) {
+      if (!state.running || state.paused || state.gameOver) return;
+      state.survivalTime += dt;
+      updateDifficulty();
+      state.spawnTimer -= dt * 1000;
+      if (state.spawnTimer <= 0) {
+        state.pieces.push(createPiece());
+        if (state.level >= 7 && Math.random() < 0.28) {
+          state.pieces.push(createPiece());
+        }
+        state.spawnTimer = state.spawnEvery;
+      }
+
+      for (const piece of state.pieces) {
+        if (piece !== state.dragging && !piece.isWall) {
+          piece.vy = Math.min(185 + state.level * 10, piece.vy + (210 + state.level * 16) * dt);
+          piece.x += piece.vx * dt;
+          piece.y += piece.vy * dt;
+          piece.angle += piece.spin * dt;
+          piece.wobble += dt * 3.4;
+          clampToPlayfield(piece);
+        }
+      }
+
+      handleWallContacts();
+      if (state.cleared) return;
+      resolveCollisions();
+      markSupportedPile();
+      removeMatches();
+      markSupportedPile();
+
+      state.particles = state.particles.filter((particle) => {
+        particle.age += dt;
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.vy += 220 * dt;
+        return particle.age < particle.life;
+      });
+
+      state.flash = Math.max(0, state.flash - dt);
+      state.chainTimer = Math.max(0, state.chainTimer - dt);
+
+      if (pileHasCrossedDangerLine()) {
+        endGame();
+      }
+    }
+
+    function endGame() {
+      if (state.cleared) return;
+      state.gameOver = true;
+      state.running = false;
+      state.dragging = null;
+      canvas.classList.remove("dragging");
+      message.querySelector("h1").textContent = "ゲームオーバー";
+      message.querySelector("p").textContent = `スコアは ${state.score} 点でした。城壁が完成する前に、下から積み上がった図形が赤い線を越えてしまいました。`;
+      startButton.textContent = "もう一度";
+      message.classList.remove("hidden");
+    }
+
+    function clearGame() {
+      state.cleared = true;
+      state.running = false;
+      state.dragging = null;
+      canvas.classList.remove("dragging");
+      message.querySelector("h1").textContent = "ゲームクリア！";
+      message.querySelector("p").textContent = `城壁が完成しました。スコアは ${state.score} 点です。`;
+      startButton.textContent = "もう一度";
+      message.classList.remove("hidden");
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, state.width, state.height);
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      for (let x = 0; x < state.width; x += 42) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, state.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < state.height; y += 42) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(state.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const dangerY = dangerLineY();
+      ctx.save();
+      ctx.strokeStyle = state.flash > 0 ? "#ffffff" : "rgba(210, 91, 82, 0.72)";
+      ctx.fillStyle = "rgba(210, 91, 82, 0.09)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 9]);
+      ctx.beginPath();
+      ctx.moveTo(0, dangerY);
+      ctx.lineTo(state.width, dangerY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillRect(0, 0, state.width, dangerY);
+      ctx.fillStyle = "rgba(37, 49, 61, 0.16)";
+      ctx.fillRect(0, floorY(), state.width, state.height - floorY());
+      ctx.fillStyle = "#d25b52";
+      ctx.font = "800 13px ui-rounded, system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("GAME OVER LINE", state.width - 14, dangerY - 7);
+      ctx.restore();
+      drawWallGuide();
+    }
+
+    function drawWallGuide() {
+      const y = wallY();
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      ctx.strokeStyle = "rgba(37, 49, 61, 0.54)";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.68)";
+      ctx.lineWidth = 4;
+      for (const side of ["left", "right"]) {
+        const x = side === "left" ? 0 : state.width - 76;
+        ctx.fillRect(x, y + 28, 76, 12);
+        ctx.strokeRect(x, y + 28, 76, 12);
+      }
+
+      if (!state.wallPieces.length) {
+        const dummy = { radius: 30 };
+        for (const side of ["left", "right"]) {
+          const target = shelfTarget(side, dummy);
+          ctx.strokeStyle = "rgba(14, 143, 143, 0.8)";
+          ctx.fillStyle = "rgba(14, 143, 143, 0.08)";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([7, 8]);
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, 35, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      } else {
+        const expected = expectedWallLobes();
+        const dummy = { radius: pieceRadius(expected), lobes: expected };
+        const target = nextWallTarget(dummy);
+        if (target.x > 32 && target.x < state.width - 32) {
+          ctx.strokeStyle = "rgba(229, 170, 38, 0.92)";
+          ctx.fillStyle = "rgba(229, 170, 38, 0.13)";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([6, 7]);
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, dummy.radius + 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#25313d";
+          ctx.font = "900 15px ui-rounded, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`次 ${expected}`, target.x, target.y - dummy.radius - 18);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawWallConnections() {
+      if (!state.wallPieces.length) return;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(37, 49, 61, 0.28)";
+      ctx.lineWidth = 18;
+      ctx.beginPath();
+      for (let i = 0; i < state.wallPieces.length; i += 1) {
+        const piece = state.wallPieces[i];
+        if (i === 0) ctx.moveTo(piece.x, piece.y);
+        else ctx.lineTo(piece.x, piece.y);
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(229, 170, 38, 0.72)";
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      for (let i = 0; i < state.wallPieces.length; i += 1) {
+        const piece = state.wallPieces[i];
+        if (i === 0) ctx.moveTo(piece.x, piece.y);
+        else ctx.lineTo(piece.x, piece.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPiece(piece) {
+      const [fill, stroke] = colors[piece.lobes];
+      const lobes = piece.lobes;
+      const base = piece.radius * 0.62;
+      const bump = piece.radius * 0.28;
+      ctx.save();
+      ctx.translate(piece.x, piece.y);
+      ctx.rotate(piece.angle);
+      ctx.shadowColor = piece.isWall ? "rgba(91, 73, 28, 0.28)" : "rgba(34, 47, 48, 0.22)";
+      ctx.shadowBlur = piece === state.dragging ? 18 : piece.isWall ? 14 : 10;
+      ctx.shadowOffsetY = piece === state.dragging ? 9 : 5;
+
+      ctx.beginPath();
+      for (let i = 0; i <= lobes * 2; i += 1) {
+        const t = (i / (lobes * 2)) * Math.PI * 2;
+        const r = i % 2 === 0 ? base + bump : base;
+        const wobble = Math.sin(piece.wobble + i * 1.7) * 1.4;
+        const x = Math.cos(t) * (r + wobble);
+        const y = Math.sin(t) * (r + wobble);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      const gradient = ctx.createLinearGradient(-piece.radius, -piece.radius, piece.radius, piece.radius);
+      gradient.addColorStop(0, "#fff7d9");
+      gradient.addColorStop(0.18, fill);
+      gradient.addColorStop(1, stroke);
+      ctx.fillStyle = gradient;
+      ctx.strokeStyle = piece.isWall ? "#25313d" : "rgba(255, 255, 255, 0.78)";
+      ctx.lineWidth = piece.isWall ? 4 : 3;
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+      ctx.beginPath();
+      ctx.arc(-piece.radius * 0.18, -piece.radius * 0.2, piece.radius * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.rotate(-piece.angle);
+      ctx.fillStyle = "#24313b";
+      ctx.font = `900 ${Math.max(16, piece.radius * 0.52)}px ui-rounded, system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(piece.lobes, 0, 1);
+      ctx.restore();
+    }
+
+    function drawParticles() {
+      for (const particle of state.particles) {
+        const life = 1 - particle.age / particle.life;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, life);
+        ctx.fillStyle = particle.fill;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawPaused() {
+      if (!state.paused) return;
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+      ctx.fillRect(0, 0, state.width, state.height);
+      ctx.fillStyle = "#25313d";
+      ctx.font = "900 34px ui-rounded, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("一時停止", state.width / 2, state.height / 2);
+      ctx.restore();
+    }
+
+    function render() {
+      drawBackground();
+      drawWallConnections();
+      for (const piece of state.pieces) {
+        drawPiece(piece);
+      }
+      drawParticles();
+      drawPaused();
+    }
+
+    function loop(time) {
+      if (!state.lastTime) state.lastTime = time;
+      const dt = Math.min(0.034, (time - state.lastTime) / 1000);
+      state.lastTime = time;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    startButton.addEventListener("click", resetGame);
+    restartButton.addEventListener("click", resetGame);
+    pauseButton.addEventListener("click", () => {
+      if (!state.running || state.gameOver) return;
+      state.paused = !state.paused;
+      pauseButton.textContent = state.paused ? "▶" : "Ⅱ";
+    });
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("resize", resize);
+
+    resize();
+    render();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
