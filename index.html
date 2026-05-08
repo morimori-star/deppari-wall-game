@@ -652,11 +652,11 @@
 
     function isRestingOn(piece, base) {
       const dx = Math.abs(piece.x - base.x);
-      const dy = piece.y - base.y;
+      const verticalGap = base.y - piece.y;
       const contact = touchDistance(piece, base);
-      const horizontalOverlap = dx <= contact * 0.62;
-      const aboveBase = dy < -piece.radius * 0.28;
-      const closeEnough = Math.hypot(piece.x - base.x, piece.y - base.y) <= contact + 4;
+      const horizontalOverlap = dx <= contact * 0.84;
+      const aboveBase = verticalGap >= Math.min(piece.radius, base.radius) * 0.14;
+      const closeEnough = Math.hypot(piece.x - base.x, piece.y - base.y) <= contact + 8;
       return horizontalOverlap && aboveBase && closeEnough;
     }
 
@@ -706,7 +706,7 @@
 
     function markSupportedPile() {
       for (const piece of state.pieces) {
-        piece.supported = !piece.isWall && piece.y + piece.radius >= floorY() - 2;
+        piece.supported = !piece.isWall && piece.y + piece.radius >= floorY() - 6;
       }
 
       let changed = true;
