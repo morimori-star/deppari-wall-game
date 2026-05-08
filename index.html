@@ -397,6 +397,7 @@
         matched: false,
         pop: 0,
         supported: false,
+        supportedTime: 0,
         isWall: false,
         wallAnchor: false,
         wallDirection: 0
@@ -735,6 +736,13 @@
       return horizontalOverlap && aboveBase && closeEnough;
     }
 
+    function verticalDamping(piece, other) {
+      const dx = Math.abs(piece.x - other.x);
+      const contact = touchDistance(piece, other);
+      const landingOnTop = piece.y < other.y && dx <= contact * 0.54;
+      return landingOnTop ? 0.58 : 0.86;
+    }
+
     function resolveCollisions() {
       for (let i = 0; i < state.pieces.length; i += 1) {
         const a = state.pieces[i];
@@ -761,12 +769,12 @@
             }
             if (aCanMove) {
               a.vx *= 0.68;
-              a.vy *= 0.46;
+              a.vy *= verticalDamping(a, b);
               a.spin *= 0.76;
             }
             if (bCanMove) {
               b.vx *= 0.68;
-              b.vy *= 0.46;
+              b.vy *= verticalDamping(b, a);
               b.spin *= 0.76;
             }
           }
@@ -801,8 +809,24 @@
       }
     }
 
+    function updateSupportTimers(dt) {
+      for (const piece of state.pieces) {
+        if (piece.isWall) continue;
+        if (piece.supported) {
+          piece.supportedTime += dt;
+        } else {
+          piece.supportedTime = 0;
+        }
+      }
+    }
+
     function pileHasCrossedDangerLine() {
-      return state.pieces.some((piece) => !piece.isWall && piece.supported && piece.y - piece.radius <= dangerLineY());
+      return state.pieces.some((piece) => (
+        !piece.isWall &&
+        piece.supported &&
+        piece.supportedTime >= 0.36 &&
+        piece.y - piece.radius <= dangerLineY()
+      ));
     }
 
     function update(dt) {
@@ -836,6 +860,7 @@
       markSupportedPile();
       removeMatches();
       markSupportedPile();
+      updateSupportTimers(dt);
 
       state.particles = state.particles.filter((particle) => {
         particle.age += dt;
