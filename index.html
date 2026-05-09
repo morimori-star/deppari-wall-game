@@ -387,7 +387,7 @@
         <h1>BLOCKADE</h1>
         <p>左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作ります。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いて防御ラインが完成するとクリアです</p>
         <div class="tutorial" id="tutorial">
-          <div class="tutorial-step active" data-demo="match"><span class="tutorial-icon">3=3</span>同じ出っ張り数が触れると消える</div>
+          <div class="tutorial-step" data-demo="match"><span class="tutorial-icon">3=3</span>同じ出っ張り数が触れると消える</div>
           <div class="tutorial-step" data-demo="rack"><span class="tutorial-icon">RACK</span>棚に置いて防御ラインを始める</div>
           <div class="tutorial-step" data-demo="chain"><span class="tutorial-icon">+1</span>次の数字を順につなげて完成</div>
         </div>
@@ -644,13 +644,37 @@
       return Math.min(state.height - 150, Math.max(wallY() + 105, state.height * 0.47));
     }
 
+    function demoActionY() {
+      return Math.min(floorY() - 112, Math.max(demoLineY() + 92, state.height * 0.68));
+    }
+
     function demoLineY() {
       return wallY();
     }
 
     function demoChainX(index) {
-      const start = Math.max(44, state.width * 0.2);
-      return start + index * pieceRadius(10) * 1.45;
+      let x = shelfTarget("left", { radius: pieceRadius(3) }).x;
+      for (let i = 1; i <= index; i += 1) {
+        const previousRadius = pieceRadius(i + 2);
+        const radius = pieceRadius(i + 3);
+        x += (previousRadius + radius) * 0.78;
+      }
+      return x;
+    }
+
+    function createOpenDemoPiece() {
+      const y = randomInt(Math.floor(demoLineY() + 42), Math.floor(floorY() - 120));
+      const piece = createDemoPiece(null, y);
+      piece.vy = randomInt(34, 74);
+      piece.vx = randomInt(-18, 18);
+      return piece;
+    }
+
+    function seedOpenDemo() {
+      const count = state.width <= 720 ? 7 : 10;
+      for (let i = 0; i < count; i += 1) {
+        state.demoPieces.push(createOpenDemoPiece());
+      }
     }
 
     function resetDemo(mode = state.demoMode) {
@@ -659,18 +683,18 @@
       state.demoGhosts = [];
       state.demoSpawnTimer = 80;
       if (mode === "open") {
-        state.demoSpawnTimer = 120;
+        seedOpenDemo();
+        state.demoSpawnTimer = 320;
       } else if (mode === "match") {
-        const y = demoY();
-        const left = demoPieceWithLobes(5, state.width * 0.27, y);
-        const right = demoPieceWithLobes(5, state.width * 0.73, y);
-        left.vx = 54;
-        right.vx = -54;
-        left.vy = 0;
-        right.vy = 0;
-        left.demoNoGravity = true;
-        right.demoNoGravity = true;
-        state.demoPieces.push(left, right);
+        const x = state.width * 0.52;
+        const y = demoActionY();
+        const lower = demoPieceWithLobes(5, x, y);
+        const upper = demoPieceWithLobes(5, x - 8, y - lower.radius * 3.1);
+        lower.vx = 0;
+        upper.vx = 3;
+        lower.vy = 38;
+        upper.vy = 142;
+        state.demoPieces.push(lower, upper);
       } else if (mode === "rack") {
         const piece = demoPieceWithLobes(4, 54, demoLineY() - 76);
         piece.vx = 0;
@@ -1189,7 +1213,7 @@
         resetDemo(state.demoMode);
       }
       if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22 && state.demoMode === "open") {
-        state.demoPieces.push(createDemoPiece());
+        state.demoPieces.push(createOpenDemoPiece());
         state.demoSpawnTimer = 360 + Math.random() * 260;
       }
       if (state.demoMode === "chain" && state.demoSpawnTimer <= 0) {
@@ -1251,7 +1275,7 @@
 
       resolveDemoCollisions();
       resolveDemoCollisions();
-      if (state.demoMode === "match") {
+      if (state.demoMode === "match" || state.demoMode === "open") {
         removeDemoMatches();
       }
 
