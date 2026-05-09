@@ -1353,7 +1353,7 @@
       const rackDemoShouldFade = state.demoMode === "rack" && state.demoCycleTime >= 2.8 && state.demoPieces.some((piece) => piece.isWall);
       if (pileTooHigh || state.demoPieces.length > pieceLimit || openDemoShouldFade || rackDemoShouldFade) {
         fadeOutDemoPieces();
-        state.demoSpawnTimer = state.demoMode === "open" ? 1150 : 520;
+        state.demoSpawnTimer = state.demoMode === "open" ? 1850 : 520;
         state.demoCycleTime = 0;
       }
     }
@@ -1363,18 +1363,49 @@
       const fading = idSet
         ? state.demoPieces.filter((piece) => idSet.has(piece.id))
         : state.demoPieces;
+      const stableFadeIds = demoStableFadeIds(fading);
       for (const piece of fading) {
-        const life = state.demoMode === "open" ? 1.15 : 0.62;
+        const life = state.demoMode === "open" ? 1.75 : 0.62;
         state.demoGhosts.push({
           ...piece,
           age: 0,
           life,
-          alpha: 1
+          alpha: 1,
+          demoFadeStatic: stableFadeIds.has(piece.id)
         });
       }
       state.demoPieces = idSet
         ? state.demoPieces.filter((piece) => !idSet.has(piece.id))
         : [];
+    }
+
+    function demoStableFadeIds(pieces) {
+      const stable = new Set();
+      if (state.demoMode !== "open") return stable;
+
+      for (const piece of pieces) {
+        if (piece.demoStatic || piece.y >= dangerLineY() + 20 || piece.y + piece.radius >= floorY() - 8) {
+          stable.add(piece.id);
+        }
+      }
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const piece of pieces) {
+          if (stable.has(piece.id)) continue;
+          for (const base of pieces) {
+            if (piece === base || !stable.has(base.id) || piece.y >= base.y) continue;
+            if (isRestingOn(piece, base)) {
+              stable.add(piece.id);
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+
+      return stable;
     }
 
     function resolveDemoCollisions() {
@@ -1505,7 +1536,7 @@
         piece.age += dt;
         const fade = Math.max(0, 1 - piece.age / piece.life);
         piece.alpha = Math.sin(fade * Math.PI * 0.5);
-        if (!piece.demoStatic) {
+        if (!piece.demoStatic && !piece.demoFadeStatic) {
           piece.vy = Math.min(132, (piece.vy || 0) + 54 * dt);
           piece.x += (piece.vx || 0) * dt;
           piece.y += piece.vy * dt;
