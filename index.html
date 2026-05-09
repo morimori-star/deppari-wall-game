@@ -1343,13 +1343,15 @@
         removeDemoMatches(dt);
       }
 
-      const pileTooHigh = state.demoPieces.length >= 18 && state.demoPieces.some((piece) => (
+      const pileLimit = state.demoMode === "open" ? 30 : 18;
+      const pieceLimit = state.demoMode === "open" ? 38 : 26;
+      const pileTooHigh = state.demoPieces.length >= pileLimit && state.demoPieces.some((piece) => (
         piece.y > state.height * 0.45 &&
         piece.y - piece.radius <= dangerLineY() + 16
       ));
-      const openDemoShouldFade = state.demoMode === "open" && state.demoCycleTime >= 6.4;
+      const openDemoShouldFade = state.demoMode === "open" && state.demoCycleTime >= 12.8;
       const rackDemoShouldFade = state.demoMode === "rack" && state.demoCycleTime >= 2.8 && state.demoPieces.some((piece) => piece.isWall);
-      if (pileTooHigh || state.demoPieces.length > 26 || openDemoShouldFade || rackDemoShouldFade) {
+      if (pileTooHigh || state.demoPieces.length > pieceLimit || openDemoShouldFade || rackDemoShouldFade) {
         fadeOutDemoPieces();
         state.demoSpawnTimer = state.demoMode === "open" ? 1150 : 520;
         state.demoCycleTime = 0;
