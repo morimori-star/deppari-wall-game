@@ -444,18 +444,14 @@
       };
     }
 
-    function shelfEnd(side) {
-      return side === "left" ? 84 : state.width - 84;
-    }
-
     function wallProgress() {
       if (!state.wallPieces.length) return 0;
       const first = state.wallPieces[0];
       const last = state.wallPieces[state.wallPieces.length - 1];
-      if (first.wallDirection > 0) {
-        return Math.max(0, Math.min(1, (last.x + last.radius - shelfEnd("left")) / (state.width - 168)));
-      }
-      return Math.max(0, Math.min(1, (shelfEnd("right") - (last.x - last.radius)) / (state.width - 168)));
+      const side = first.wallDirection > 0 ? "right" : "left";
+      const end = shelfTarget(side, last);
+      const span = Math.max(1, Math.abs(end.x - first.x));
+      return Math.max(0, Math.min(1, Math.abs(last.x - first.x) / span));
     }
 
     function clampToPlayfield(piece) {
@@ -601,15 +597,33 @@
       return nextLobes(state.wallPieces[state.wallPieces.length - 1].lobes);
     }
 
+    function oppositeRackSide(direction) {
+      return direction > 0 ? "right" : "left";
+    }
+
+    function reachesOppositeRack(piece, target) {
+      return target.direction > 0
+        ? target.x + piece.radius >= state.width - 76
+        : target.x - piece.radius <= 76;
+    }
+
     function nextWallTarget(piece) {
       if (!state.wallPieces.length) return null;
       const last = state.wallPieces[state.wallPieces.length - 1];
       const distance = touchDistance(last, piece) * 0.92;
-      return {
+      const target = {
         x: last.x + last.wallDirection * distance,
         y: wallY(),
-        direction: last.wallDirection
+        direction: last.wallDirection,
+        complete: false
       };
+      if (reachesOppositeRack(piece, target)) {
+        return {
+          ...shelfTarget(oppositeRackSide(last.wallDirection), piece),
+          complete: true
+        };
+      }
+      return target;
     }
 
     function makeWallPiece(piece, target, isAnchor) {
@@ -627,7 +641,7 @@
       state.score += isAnchor ? 120 : 180;
       state.flash = 0.16;
       updateHud();
-      if (wallProgress() >= 1) {
+      if (target.complete) {
         clearGame();
       }
     }
