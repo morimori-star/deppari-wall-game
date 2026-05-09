@@ -470,6 +470,7 @@
       demoGhosts: [],
       demoMode: "match",
       demoSpawnTimer: 0,
+      demoCycleTime: 0,
       pieces: [],
       wallPieces: [],
       particles: [],
@@ -657,23 +658,29 @@
       for (let i = 1; i <= index; i += 1) {
         const previousRadius = pieceRadius(i + 2);
         const radius = pieceRadius(i + 3);
-        x += (previousRadius + radius) * 0.78;
+        x += (previousRadius + radius) * 0.86;
       }
       return x;
     }
 
-    function createOpenDemoPiece() {
-      const y = randomInt(Math.floor(demoLineY() + 42), Math.floor(floorY() - 120));
-      const piece = createDemoPiece(null, y);
-      piece.vy = randomInt(34, 74);
+    function createOpenDemoPiece(seeded = false) {
+      const piece = createDemoPiece();
+      if (seeded) {
+        const highest = -piece.radius;
+        const lowest = Math.max(highest, demoLineY() - piece.radius * 2.4);
+        piece.y = randomInt(Math.floor(highest), Math.floor(lowest));
+      } else {
+        piece.y = -piece.radius - randomInt(0, 170);
+      }
+      piece.vy = randomInt(74, 112);
       piece.vx = randomInt(-18, 18);
       return piece;
     }
 
     function seedOpenDemo() {
-      const count = state.width <= 720 ? 7 : 10;
+      const count = state.width <= 720 ? 5 : 7;
       for (let i = 0; i < count; i += 1) {
-        state.demoPieces.push(createOpenDemoPiece());
+        state.demoPieces.push(createOpenDemoPiece(true));
       }
     }
 
@@ -682,9 +689,10 @@
       state.demoPieces = [];
       state.demoGhosts = [];
       state.demoSpawnTimer = 80;
+      state.demoCycleTime = 0;
       if (mode === "open") {
         seedOpenDemo();
-        state.demoSpawnTimer = 320;
+        state.demoSpawnTimer = 420;
       } else if (mode === "match") {
         const x = state.width * 0.52;
         const y = demoActionY();
@@ -692,8 +700,8 @@
         const upper = demoPieceWithLobes(5, x - 8, y - lower.radius * 3.1);
         lower.vx = 0;
         upper.vx = 3;
-        lower.vy = 38;
-        upper.vy = 142;
+        lower.vy = 62;
+        upper.vy = 116;
         state.demoPieces.push(lower, upper);
       } else if (mode === "rack") {
         const piece = demoPieceWithLobes(4, 54, demoLineY() - 76);
@@ -1209,6 +1217,7 @@
       if (!shouldShowDemo) return;
 
       state.demoSpawnTimer -= dt * 1000;
+      state.demoCycleTime += dt;
       if (state.demoSpawnTimer <= 0 && !state.demoPieces.length && !state.demoGhosts.length) {
         resetDemo(state.demoMode);
       }
@@ -1242,7 +1251,7 @@
           piece.y += (piece.demoTargetY - piece.y) * Math.min(1, dt * speed);
           piece.vx = 0;
           piece.vy = 0;
-          if (Math.hypot(piece.x - piece.demoTargetX, piece.y - piece.demoTargetY) < 2.5) {
+          if (Math.hypot(piece.x - piece.demoTargetX, piece.y - piece.demoTargetY) < 12) {
             piece.x = piece.demoTargetX;
             piece.y = piece.demoTargetY;
             piece.demoStatic = true;
@@ -1273,19 +1282,25 @@
         }
       }
 
-      resolveDemoCollisions();
-      resolveDemoCollisions();
+      if (state.demoMode !== "match") {
+        resolveDemoCollisions();
+        resolveDemoCollisions();
+      }
       if (state.demoMode === "match" || state.demoMode === "open") {
-        removeDemoMatches();
+        removeDemoMatches(dt);
       }
 
       const pileTooHigh = state.demoPieces.length >= 18 && state.demoPieces.some((piece) => (
         piece.y > state.height * 0.45 &&
         piece.y - piece.radius <= dangerLineY() + 16
       ));
-      if (pileTooHigh || state.demoPieces.length > 26) {
+      const openDemoSettled = state.demoMode === "open" && state.demoCycleTime >= 7.5 && state.demoPieces.some((piece) => (
+        piece.y + piece.radius >= floorY() - 2
+      ));
+      if (pileTooHigh || state.demoPieces.length > 26 || openDemoSettled) {
         fadeOutDemoPieces();
         state.demoSpawnTimer = 260;
+        state.demoCycleTime = 0;
       }
     }
 
@@ -1312,6 +1327,7 @@
         const a = state.demoPieces[i];
         for (let j = i + 1; j < state.demoPieces.length; j += 1) {
           const b = state.demoPieces[j];
+          if (state.demoMode === "chain" && (a.demoSnapToWall || b.demoSnapToWall)) continue;
           const dx = b.x - a.x;
           const dy = b.y - a.y;
           const distance = Math.max(0.001, Math.hypot(dx, dy));
@@ -1347,14 +1363,29 @@
       }
     }
 
-    function removeDemoMatches() {
+    function removeDemoMatches(dt = 0) {
       const matched = new Set();
       for (let i = 0; i < state.demoPieces.length; i += 1) {
         const a = state.demoPieces[i];
         for (let j = i + 1; j < state.demoPieces.length; j += 1) {
           const b = state.demoPieces[j];
           if (a.lobes !== b.lobes) continue;
-          if (Math.hypot(a.x - b.x, a.y - b.y) <= touchDistance(a, b) + 14) {
+          const matchPadding = state.demoMode === "match" ? 34 : 14;
+          if (Math.hypot(a.x - b.x, a.y - b.y) <= touchDistance(a, b) + matchPadding) {
+            if (state.demoMode === "match") {
+              const top = a.y <= b.y ? a : b;
+              const bottom = top === a ? b : a;
+              const displayGap = touchDistance(a, b) * 0.72;
+              top.x += (bottom.x - top.x) * 0.34;
+              top.y += (bottom.y - displayGap - top.y) * 0.34;
+              a.demoMatchHold = (a.demoMatchHold || 0) + dt;
+              b.demoMatchHold = (b.demoMatchHold || 0) + dt;
+              a.vx *= 0.4;
+              b.vx *= 0.4;
+              a.vy *= 0.55;
+              b.vy *= 0.55;
+              if (Math.min(a.demoMatchHold, b.demoMatchHold) < 0.85) continue;
+            }
             matched.add(a.id);
             matched.add(b.id);
             break;
