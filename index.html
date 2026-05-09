@@ -452,9 +452,9 @@
     }
 
     function unlockAudio() {
-      if (audioUnlocked) return;
       const audio = ensureAudio();
       if (!audio) return;
+      if (audioUnlocked && audio.state === "running") return;
       audioUnlocked = true;
       audio.resume().catch(() => {});
       playTone(1, 0.025, "sine", 0.0001);
@@ -586,6 +586,7 @@
     }
 
     function resetGame() {
+      unlockAudio();
       playSound("start");
       const settings = difficultySettings[state.difficulty];
       state.demoPieces = [];
@@ -632,7 +633,7 @@
       message.querySelector("p").textContent = text;
       resultMeta.textContent = `${difficultySettings[state.difficulty].label} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
       resultMeta.classList.remove("hidden");
-      startButton.textContent = "難易度を選び直して再挑戦";
+      startButton.textContent = "難易度を選んで再挑戦";
       sameRetryButton.classList.remove("hidden");
       message.classList.remove("hidden");
     }
@@ -1056,7 +1057,10 @@
       resolveDemoCollisions();
       removeDemoMatches();
 
-      const pileTooHigh = state.demoPieces.some((piece) => piece.y - piece.radius <= dangerLineY() + 16);
+      const pileTooHigh = state.demoPieces.length >= 18 && state.demoPieces.some((piece) => (
+        piece.y > state.height * 0.45 &&
+        piece.y - piece.radius <= dangerLineY() + 16
+      ));
       if (pileTooHigh || state.demoPieces.length > 26) {
         state.demoPieces.forEach(spawnBurst);
         state.demoPieces = [];
@@ -1195,7 +1199,7 @@
       state.dragging = null;
       canvas.classList.remove("dragging");
       playSound("gameover");
-      showResult("ゲームオーバー", "下から積み上がった図形が防御ラインを超えました。ラインを突破されないよう、防御ラインの完成を急ぎましょう。");
+      showResult("ゲームオーバー", "下から積み上がった図形が防御ラインを超えました。ライン突破を防ぎつつ、防御ラインの完成を急ぎましょう。");
     }
 
     function clearGame() {
@@ -1456,6 +1460,8 @@
     restartButton.addEventListener("click", resetGame);
     document.addEventListener("pointerdown", unlockAudio, { once: true });
     document.addEventListener("touchstart", unlockAudio, { once: true });
+    document.addEventListener("click", unlockAudio, { once: true });
+    document.addEventListener("touchend", unlockAudio, { once: true });
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
         if (state.running && !state.gameOver && !state.cleared) return;
