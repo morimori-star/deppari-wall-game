@@ -679,6 +679,25 @@
       return false;
     }
 
+    function detachWallTailFromBreak(erasedWallPieces) {
+      if (!erasedWallPieces.size) return;
+      const breakIndex = state.wallPieces.findIndex((piece) => erasedWallPieces.has(piece.id));
+      if (breakIndex < 0) return;
+
+      const tail = state.wallPieces.slice(breakIndex + 1);
+      for (const piece of tail) {
+        piece.isWall = false;
+        piece.wallAnchor = false;
+        piece.wallDirection = 0;
+        piece.supported = false;
+        piece.supportedTime = 0;
+        piece.vx = randomInt(-18, 18);
+        piece.vy = 38 + state.level * 5;
+        piece.spin = (Math.random() - 0.5) * 0.85;
+      }
+      state.wallPieces = state.wallPieces.slice(0, breakIndex);
+    }
+
     function handleWallContacts() {
       const erasedPieces = new Set();
       const erasedWallPieces = new Set();
@@ -704,7 +723,7 @@
       const removed = state.pieces.filter((piece) => erasedPieces.has(piece.id) || erasedWallPieces.has(piece.id));
       removed.forEach(spawnBurst);
       state.pieces = state.pieces.filter((piece) => !erasedPieces.has(piece.id) && !erasedWallPieces.has(piece.id));
-      state.wallPieces = state.wallPieces.filter((piece) => !erasedWallPieces.has(piece.id));
+      detachWallTailFromBreak(erasedWallPieces);
       state.score += erasedPieces.size * 30;
       state.flash = 0.16;
       updateHud();
