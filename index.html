@@ -550,7 +550,7 @@
     }
 
     function onPointerMove(event) {
-      if (!state.dragging) return;
+      if (!state.dragging || state.dragging.isWall) return;
       const pos = pointerPosition(event);
       const piece = state.dragging;
       const targetX = pos.x + state.dragOffsetX;
@@ -674,12 +674,12 @@
       const erasedPieces = new Set();
       const erasedWallPieces = new Set();
       for (const piece of state.pieces) {
-        if (piece.isWall) continue;
+        if (piece.isWall || piece === state.dragging) continue;
         tryAttachToWall(piece);
       }
 
       for (const piece of state.pieces) {
-        if (piece.isWall) continue;
+        if (piece.isWall || piece === state.dragging) continue;
         for (const wall of state.wallPieces) {
           if (wall.wallAnchor || wall.lobes !== piece.lobes) continue;
           const distance = Math.hypot(piece.x - wall.x, piece.y - wall.y);
@@ -1028,27 +1028,33 @@
 
     function drawWallConnections() {
       if (!state.wallPieces.length) return;
+      const first = state.wallPieces[0];
+      const last = state.wallPieces[state.wallPieces.length - 1];
+      const startX = first.wallDirection > 0 ? 0 : state.width;
+      const progressX = Math.max(0, Math.min(state.width, last.x));
+      const y = wallY();
+      const bandWidth = Math.max(58, pieceRadius(10) * 2.35);
       ctx.save();
       ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "rgba(37, 49, 61, 0.28)";
-      ctx.lineWidth = 18;
+      ctx.strokeStyle = "rgba(37, 49, 61, 0.12)";
+      ctx.lineWidth = bandWidth;
       ctx.beginPath();
-      for (let i = 0; i < state.wallPieces.length; i += 1) {
-        const piece = state.wallPieces[i];
-        if (i === 0) ctx.moveTo(piece.x, piece.y);
-        else ctx.lineTo(piece.x, piece.y);
-      }
+      ctx.moveTo(0, y);
+      ctx.lineTo(state.width, y);
       ctx.stroke();
 
-      ctx.strokeStyle = "rgba(229, 170, 38, 0.72)";
-      ctx.lineWidth = 7;
+      ctx.strokeStyle = "rgba(229, 170, 38, 0.5)";
+      ctx.lineWidth = bandWidth;
       ctx.beginPath();
-      for (let i = 0; i < state.wallPieces.length; i += 1) {
-        const piece = state.wallPieces[i];
-        if (i === 0) ctx.moveTo(piece.x, piece.y);
-        else ctx.lineTo(piece.x, piece.y);
-      }
+      ctx.moveTo(startX, y);
+      ctx.lineTo(progressX, y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.62)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(startX, y);
+      ctx.lineTo(progressX, y);
       ctx.stroke();
       ctx.restore();
     }
