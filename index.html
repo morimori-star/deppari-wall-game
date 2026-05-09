@@ -620,7 +620,7 @@
       message.querySelector("p").textContent = text;
       resultMeta.textContent = `${difficultySettings[state.difficulty].label} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
       resultMeta.classList.remove("hidden");
-      startButton.textContent = "選んで再挑戦";
+      startButton.textContent = "難易度を選び直して再挑戦";
       sameRetryButton.classList.remove("hidden");
       message.classList.remove("hidden");
     }
@@ -1107,7 +1107,7 @@
       state.dragging = null;
       canvas.classList.remove("dragging");
       playSound("gameover");
-      showResult("ゲームオーバー", "下から積み上がった図形が防御ラインを越えました。ラインを守りながら、防御ラインの完成を急ぎましょう。");
+      showResult("ゲームオーバー", "下から積み上がった図形が防御ラインを超えました。ラインを突破されないよう、防御ラインの完成を急ぎましょう。");
     }
 
     function clearGame() {
