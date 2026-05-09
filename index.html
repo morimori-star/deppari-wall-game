@@ -640,42 +640,42 @@
       return piece;
     }
 
+    function demoY() {
+      return Math.min(state.height - 150, Math.max(wallY() + 105, state.height * 0.47));
+    }
+
+    function demoChainX(index) {
+      const start = Math.max(44, state.width * 0.2);
+      return start + index * pieceRadius(10) * 1.45;
+    }
+
     function resetDemo(mode = state.demoMode) {
       state.demoMode = mode;
       state.demoPieces = [];
       state.demoGhosts = [];
       state.demoSpawnTimer = 80;
       if (mode === "match") {
-        const y = Math.min(state.height * 0.48, wallY() + 130);
-        const left = demoPieceWithLobes(5, state.width * 0.34, y);
-        const right = demoPieceWithLobes(5, state.width * 0.66, y);
-        left.vx = 28;
-        right.vx = -28;
+        const y = demoY();
+        const left = demoPieceWithLobes(5, state.width * 0.27, y);
+        const right = demoPieceWithLobes(5, state.width * 0.73, y);
+        left.vx = 54;
+        right.vx = -54;
         left.vy = 0;
         right.vy = 0;
         left.demoNoGravity = true;
         right.demoNoGravity = true;
         state.demoPieces.push(left, right);
       } else if (mode === "rack") {
-        const piece = demoPieceWithLobes(4, 54, wallY() - 76);
+        const piece = demoPieceWithLobes(4, 54, demoY() - 76);
         piece.vx = 0;
-        piece.demoTargetX = shelfTarget("left", piece).x;
-        piece.demoTargetY = shelfTarget("left", piece).y;
+        piece.demoTargetX = 54;
+        piece.demoTargetY = demoY();
         piece.demoSnapToWall = true;
         state.demoPieces.push(piece);
       } else if (mode === "chain") {
-        for (let i = 0; i < 4; i += 1) {
-          const lobes = 3 + i;
-          const piece = createDemoWallPiece(lobes, 54 + i * 52, wallY());
-          state.demoPieces.push(piece);
-        }
-        const next = demoPieceWithLobes(7, 54 + 4 * 52, wallY() - 84);
-        next.vx = 0;
-        next.demoTargetX = 54 + 4 * 52;
-        next.demoTargetY = wallY();
-        next.demoSnapToWall = true;
-        next.demoSnapSpeed = 1.25;
-        state.demoPieces.push(next);
+        const first = createDemoWallPiece(3, demoChainX(0), demoY());
+        state.demoPieces.push(first);
+        state.demoSpawnTimer = 240;
       }
     }
 
@@ -1186,6 +1186,23 @@
         state.demoPieces.push(createDemoPiece());
         state.demoSpawnTimer = 360 + Math.random() * 260;
       }
+      if (state.demoMode === "chain" && state.demoSpawnTimer <= 0) {
+        const wallCount = state.demoPieces.filter((piece) => piece.isWall).length;
+        const hasMoving = state.demoPieces.some((piece) => piece.demoSnapToWall && !piece.demoStatic);
+        if (!hasMoving && wallCount > 0 && wallCount < 5) {
+          const lobes = 3 + wallCount;
+          const next = demoPieceWithLobes(lobes, demoChainX(wallCount), demoY() - 82);
+          next.vx = 0;
+          next.demoTargetX = demoChainX(wallCount);
+          next.demoTargetY = demoY();
+          next.demoSnapToWall = true;
+          next.demoSnapSpeed = 1.8;
+          state.demoPieces.push(next);
+        } else if (wallCount >= 5) {
+          fadeOutDemoPieces();
+        }
+        state.demoSpawnTimer = 900;
+      }
 
       for (const piece of state.demoPieces) {
         if (piece.demoStatic) continue;
@@ -1520,7 +1537,7 @@
       if (state.running || state.gameOver || state.cleared || state.demoMode === "match" || !state.demoPieces.length) return;
       const wallPieces = state.demoPieces.filter((piece) => piece.isWall);
       if (!wallPieces.length) return;
-      const y = wallY();
+      const y = demoY();
       const startX = 0;
       const progressX = Math.max(...wallPieces.map((piece) => piece.x));
       const bandWidth = Math.max(58, pieceRadius(10) * 2.35);
