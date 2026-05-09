@@ -451,7 +451,8 @@
       const side = first.wallDirection > 0 ? "right" : "left";
       const end = shelfTarget(side, last);
       const span = Math.max(1, Math.abs(end.x - first.x));
-      return Math.max(0, Math.min(1, Math.abs(last.x - first.x) / span));
+      const progress = Math.max(0, Math.min(1, Math.abs(last.x - first.x) / span));
+      return state.cleared ? progress : Math.min(0.99, progress);
     }
 
     function clampToPlayfield(piece) {
@@ -607,6 +608,11 @@
         : target.x - piece.radius <= 76;
     }
 
+    function canCompleteOnOppositeRack(last, piece, rackTarget) {
+      const distance = Math.hypot(last.x - rackTarget.x, last.y - rackTarget.y);
+      return distance <= touchDistance(last, piece) + 8;
+    }
+
     function nextWallTarget(piece) {
       if (!state.wallPieces.length) return null;
       const last = state.wallPieces[state.wallPieces.length - 1];
@@ -618,10 +624,13 @@
         complete: false
       };
       if (reachesOppositeRack(piece, target)) {
-        return {
-          ...shelfTarget(oppositeRackSide(last.wallDirection), piece),
-          complete: true
-        };
+        const rackTarget = shelfTarget(oppositeRackSide(last.wallDirection), piece);
+        if (canCompleteOnOppositeRack(last, piece, rackTarget)) {
+          return {
+            ...rackTarget,
+            complete: true
+          };
+        }
       }
       return target;
     }
