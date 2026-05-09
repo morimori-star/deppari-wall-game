@@ -1351,7 +1351,7 @@
       const rackDemoShouldFade = state.demoMode === "rack" && state.demoCycleTime >= 2.8 && state.demoPieces.some((piece) => piece.isWall);
       if (pileTooHigh || state.demoPieces.length > 26 || openDemoShouldFade || rackDemoShouldFade) {
         fadeOutDemoPieces();
-        state.demoSpawnTimer = 260;
+        state.demoSpawnTimer = state.demoMode === "open" ? 1150 : 520;
         state.demoCycleTime = 0;
       }
     }
@@ -1362,10 +1362,11 @@
         ? state.demoPieces.filter((piece) => idSet.has(piece.id))
         : state.demoPieces;
       for (const piece of fading) {
+        const life = state.demoMode === "open" ? 1.15 : 0.62;
         state.demoGhosts.push({
           ...piece,
           age: 0,
-          life: 0.42,
+          life,
           alpha: 1
         });
       }
@@ -1500,12 +1501,19 @@
     function updateEffects(dt) {
       state.demoGhosts = state.demoGhosts.filter((piece) => {
         piece.age += dt;
-        piece.alpha = Math.max(0, 1 - piece.age / piece.life);
+        const fade = Math.max(0, 1 - piece.age / piece.life);
+        piece.alpha = Math.sin(fade * Math.PI * 0.5);
         if (!piece.demoStatic) {
-          piece.vy = Math.min(150, (piece.vy || 0) + 90 * dt);
+          piece.vy = Math.min(132, (piece.vy || 0) + 54 * dt);
           piece.x += (piece.vx || 0) * dt;
           piece.y += piece.vy * dt;
           piece.angle += (piece.spin || 0) * dt;
+          if (piece.y + piece.radius > floorY()) {
+            piece.y = floorY() - piece.radius;
+            piece.vy = 0;
+            piece.vx = (piece.vx || 0) * 0.82;
+            piece.spin = (piece.spin || 0) * 0.82;
+          }
         }
         return piece.age < piece.life;
       });
