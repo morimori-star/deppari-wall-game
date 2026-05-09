@@ -421,6 +421,7 @@
     }
 
     let audioContext = null;
+    let audioUnlocked = false;
 
     function ensureAudio() {
       if (audioContext) return audioContext;
@@ -436,7 +437,7 @@
       if (audio.state === "suspended") {
         audio.resume();
       }
-      const start = audio.currentTime + delay;
+      const start = audio.currentTime + delay + (audio.state === "suspended" ? 0.06 : 0);
       const oscillator = audio.createOscillator();
       const gain = audio.createGain();
       oscillator.type = type;
@@ -448,6 +449,15 @@
       gain.connect(audio.destination);
       oscillator.start(start);
       oscillator.stop(start + duration + 0.02);
+    }
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      const audio = ensureAudio();
+      if (!audio) return;
+      audioUnlocked = true;
+      audio.resume().catch(() => {});
+      playTone(1, 0.025, "sine", 0.0001);
     }
 
     function playSound(name) {
@@ -511,8 +521,10 @@
 
     function createDemoPiece(x = null, y = null) {
       const piece = createPiece(x, y);
-      piece.vx = randomInt(-8, 8);
-      piece.vy = randomInt(32, 58);
+      piece.x = x ?? randomInt(piece.radius + 12, Math.max(piece.radius + 12, state.width - piece.radius - 12));
+      piece.y = y ?? -piece.radius - randomInt(0, 90);
+      piece.vx = randomInt(-10, 10);
+      piece.vy = randomInt(42, 68);
       piece.spin = (Math.random() - 0.5) * 0.42;
       piece.demo = true;
       return piece;
@@ -1016,13 +1028,14 @@
       if (!shouldShowDemo) return;
 
       state.demoSpawnTimer -= dt * 1000;
-      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 14) {
+      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22) {
         state.demoPieces.push(createDemoPiece());
-        state.demoSpawnTimer = 520 + Math.random() * 360;
+        state.demoSpawnTimer = 360 + Math.random() * 260;
       }
 
       for (const piece of state.demoPieces) {
-        piece.vy = Math.min(92, piece.vy + 18 * dt);
+        piece.vy = Math.min(132, piece.vy + 185 * dt);
+        piece.vx *= 0.997;
         piece.x += piece.vx * dt;
         piece.y += piece.vy * dt;
         piece.angle += piece.spin * dt;
@@ -1031,9 +1044,79 @@
           piece.vx *= -0.6;
           piece.x = Math.max(piece.radius, Math.min(state.width - piece.radius, piece.x));
         }
+        if (piece.y + piece.radius > floorY()) {
+          piece.y = floorY() - piece.radius;
+          piece.vy = 0;
+          piece.vx *= 0.55;
+          piece.spin *= 0.74;
+        }
       }
 
-      state.demoPieces = state.demoPieces.filter((piece) => piece.y - piece.radius < state.height + 12);
+      resolveDemoCollisions();
+      resolveDemoCollisions();
+      removeDemoMatches();
+
+      const pileTooHigh = state.demoPieces.some((piece) => piece.y - piece.radius <= dangerLineY() + 16);
+      if (pileTooHigh || state.demoPieces.length > 26) {
+        state.demoPieces.forEach(spawnBurst);
+        state.demoPieces = [];
+        state.demoSpawnTimer = 260;
+      }
+    }
+
+    function resolveDemoCollisions() {
+      for (let i = 0; i < state.demoPieces.length; i += 1) {
+        const a = state.demoPieces[i];
+        for (let j = i + 1; j < state.demoPieces.length; j += 1) {
+          const b = state.demoPieces[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const distance = Math.max(0.001, Math.hypot(dx, dy));
+          const minDistance = touchDistance(a, b);
+          if (distance < minDistance) {
+            const push = (minDistance - distance) * 0.5;
+            const nx = dx / distance;
+            const ny = dy / distance;
+            a.x -= nx * push;
+            a.y -= ny * push;
+            b.x += nx * push;
+            b.y += ny * push;
+            a.vx *= 0.72;
+            b.vx *= 0.72;
+            a.vy *= verticalDamping(a, b);
+            b.vy *= verticalDamping(b, a);
+          }
+        }
+      }
+
+      for (const piece of state.demoPieces) {
+        if (piece.x < piece.radius) piece.x = piece.radius;
+        if (piece.x > state.width - piece.radius) piece.x = state.width - piece.radius;
+        if (piece.y + piece.radius > floorY()) {
+          piece.y = floorY() - piece.radius;
+          piece.vy = 0;
+        }
+      }
+    }
+
+    function removeDemoMatches() {
+      const matched = new Set();
+      for (let i = 0; i < state.demoPieces.length; i += 1) {
+        const a = state.demoPieces[i];
+        for (let j = i + 1; j < state.demoPieces.length; j += 1) {
+          const b = state.demoPieces[j];
+          if (a.lobes !== b.lobes) continue;
+          if (Math.hypot(a.x - b.x, a.y - b.y) <= touchDistance(a, b) + 14) {
+            matched.add(a.id);
+            matched.add(b.id);
+            break;
+          }
+        }
+      }
+      if (!matched.size) return;
+      const removed = state.demoPieces.filter((piece) => matched.has(piece.id));
+      removed.forEach(spawnBurst);
+      state.demoPieces = state.demoPieces.filter((piece) => !matched.has(piece.id));
     }
 
     function update(dt) {
@@ -1042,7 +1125,12 @@
         updateEffects(dt);
         return;
       }
-      if (!state.running || state.paused || state.gameOver) return;
+      if (!state.running || state.paused || state.gameOver) {
+        if (!state.paused && !state.gameOver) {
+          updateEffects(dt);
+        }
+        return;
+      }
       state.survivalTime += dt;
       updateDifficulty();
       state.spawnTimer -= dt * 1000;
@@ -1366,6 +1454,8 @@
     startButton.addEventListener("click", resetGame);
     sameRetryButton.addEventListener("click", resetGame);
     restartButton.addEventListener("click", resetGame);
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("touchstart", unlockAudio, { once: true });
     difficultyButtons.forEach((button) => {
       button.addEventListener("click", () => {
         if (state.running && !state.gameOver && !state.cleared) return;
