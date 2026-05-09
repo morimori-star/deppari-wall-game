@@ -646,9 +646,16 @@
       state.demoGhosts = [];
       state.demoSpawnTimer = 80;
       if (mode === "match") {
-        const y = state.height * 0.24;
-        state.demoPieces.push(demoPieceWithLobes(5, state.width * 0.42, y));
-        state.demoPieces.push(demoPieceWithLobes(5, state.width * 0.58, y - 18));
+        const y = Math.min(state.height * 0.48, wallY() + 130);
+        const left = demoPieceWithLobes(5, state.width * 0.34, y);
+        const right = demoPieceWithLobes(5, state.width * 0.66, y);
+        left.vx = 28;
+        right.vx = -28;
+        left.vy = 0;
+        right.vy = 0;
+        left.demoNoGravity = true;
+        right.demoNoGravity = true;
+        state.demoPieces.push(left, right);
       } else if (mode === "rack") {
         const piece = demoPieceWithLobes(4, 54, wallY() - 76);
         piece.vx = 0;
@@ -667,6 +674,7 @@
         next.demoTargetX = 54 + 4 * 52;
         next.demoTargetY = wallY();
         next.demoSnapToWall = true;
+        next.demoSnapSpeed = 1.25;
         state.demoPieces.push(next);
       }
     }
@@ -1171,7 +1179,10 @@
       if (!shouldShowDemo) return;
 
       state.demoSpawnTimer -= dt * 1000;
-      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22 && state.demoMode === "match") {
+      if (state.demoSpawnTimer <= 0 && !state.demoPieces.length && !state.demoGhosts.length) {
+        resetDemo(state.demoMode);
+      }
+      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22 && state.demoMode === "match" && state.demoPieces.length > 8) {
         state.demoPieces.push(createDemoPiece());
         state.demoSpawnTimer = 360 + Math.random() * 260;
       }
@@ -1179,8 +1190,9 @@
       for (const piece of state.demoPieces) {
         if (piece.demoStatic) continue;
         if (piece.demoSnapToWall) {
-          piece.x += (piece.demoTargetX - piece.x) * Math.min(1, dt * 4.4);
-          piece.y += (piece.demoTargetY - piece.y) * Math.min(1, dt * 4.4);
+          const speed = piece.demoSnapSpeed ?? 4.4;
+          piece.x += (piece.demoTargetX - piece.x) * Math.min(1, dt * speed);
+          piece.y += (piece.demoTargetY - piece.y) * Math.min(1, dt * speed);
           piece.vx = 0;
           piece.vy = 0;
           if (Math.hypot(piece.x - piece.demoTargetX, piece.y - piece.demoTargetY) < 2.5) {
@@ -1194,7 +1206,9 @@
         }
         const gravity = state.demoMode === "chain" ? 92 : 185;
         const maxVy = state.demoMode === "chain" ? 86 : 132;
-        piece.vy = Math.min(maxVy, piece.vy + gravity * dt);
+        if (!piece.demoNoGravity) {
+          piece.vy = Math.min(maxVy, piece.vy + gravity * dt);
+        }
         piece.vx *= 0.997;
         piece.x += piece.vx * dt;
         piece.y += piece.vy * dt;
@@ -1301,7 +1315,10 @@
         }
       }
       if (!matched.size) return;
-      fadeOutDemoPieces(matched);
+      const removed = state.demoPieces.filter((piece) => matched.has(piece.id));
+      removed.forEach(spawnBurst);
+      state.demoPieces = state.demoPieces.filter((piece) => !matched.has(piece.id));
+      state.demoSpawnTimer = 920;
     }
 
     function update(dt) {
