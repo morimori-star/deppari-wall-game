@@ -385,6 +385,8 @@
       width: 0,
       height: 0,
       ratio: 1,
+      demoPieces: [],
+      demoSpawnTimer: 0,
       pieces: [],
       wallPieces: [],
       particles: [],
@@ -507,6 +509,15 @@
       };
     }
 
+    function createDemoPiece(x = null, y = null) {
+      const piece = createPiece(x, y);
+      piece.vx = randomInt(-8, 8);
+      piece.vy = randomInt(32, 58);
+      piece.spin = (Math.random() - 0.5) * 0.42;
+      piece.demo = true;
+      return piece;
+    }
+
     function dangerLineY() {
       const ratio = state.width <= 720 ? 0.58 : 0.62;
       return Math.max(160, state.height * ratio);
@@ -565,6 +576,7 @@
     function resetGame() {
       playSound("start");
       const settings = difficultySettings[state.difficulty];
+      state.demoPieces = [];
       state.pieces = [];
       state.wallPieces = [];
       state.particles = [];
@@ -999,7 +1011,33 @@
       ));
     }
 
+    function updateDemo(dt) {
+      const shouldShowDemo = !state.running && !state.gameOver && !state.cleared && !message.classList.contains("hidden");
+      if (!shouldShowDemo) return;
+
+      state.demoSpawnTimer -= dt * 1000;
+      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 14) {
+        state.demoPieces.push(createDemoPiece());
+        state.demoSpawnTimer = 520 + Math.random() * 360;
+      }
+
+      for (const piece of state.demoPieces) {
+        piece.vy = Math.min(92, piece.vy + 18 * dt);
+        piece.x += piece.vx * dt;
+        piece.y += piece.vy * dt;
+        piece.angle += piece.spin * dt;
+        piece.wobble += dt * 2.2;
+        if (piece.x < piece.radius || piece.x > state.width - piece.radius) {
+          piece.vx *= -0.6;
+          piece.x = Math.max(piece.radius, Math.min(state.width - piece.radius, piece.x));
+        }
+      }
+
+      state.demoPieces = state.demoPieces.filter((piece) => piece.y - piece.radius < state.height + 12);
+    }
+
     function update(dt) {
+      updateDemo(dt);
       if (state.cleared) {
         updateEffects(dt);
         return;
@@ -1300,6 +1338,14 @@
 
     function render() {
       drawBackground();
+      if (!state.running && !state.gameOver && !state.cleared) {
+        ctx.save();
+        ctx.globalAlpha = 0.52;
+        for (const piece of state.demoPieces) {
+          drawPiece(piece);
+        }
+        ctx.restore();
+      }
       drawWallConnections();
       for (const piece of state.pieces) {
         drawPiece(piece);
