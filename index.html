@@ -1353,7 +1353,7 @@
       const rackDemoShouldFade = state.demoMode === "rack" && state.demoCycleTime >= 2.8 && state.demoPieces.some((piece) => piece.isWall);
       if (pileTooHigh || state.demoPieces.length > pieceLimit || openDemoShouldFade || rackDemoShouldFade) {
         fadeOutDemoPieces();
-        state.demoSpawnTimer = state.demoMode === "open" ? 1850 : 520;
+        state.demoSpawnTimer = state.demoMode === "open" ? 1150 : 520;
         state.demoCycleTime = 0;
       }
     }
@@ -1365,13 +1365,13 @@
         : state.demoPieces;
       const stableFadeIds = demoStableFadeIds(fading);
       for (const piece of fading) {
-        const life = state.demoMode === "open" ? 1.75 : 0.62;
+        const life = state.demoMode === "open" ? 1.15 : 0.62;
         state.demoGhosts.push({
           ...piece,
           age: 0,
           life,
           alpha: 1,
-          demoFadeStatic: stableFadeIds.has(piece.id)
+          demoFadeStatic: state.demoMode === "open" || stableFadeIds.has(piece.id)
         });
       }
       state.demoPieces = idSet
