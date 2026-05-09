@@ -441,7 +441,7 @@
       </div>
       <div class="message" id="message">
         <h1>BLOCKADE</h1>
-        <p>降ってくる図形を動かして下に溜まらないようにしましょう。LINEを超えたらゲームオーバー。防御ラインをつくるには、左右どちらかのラック（棚）に図形を置いてベースを作り、次に出っ張り数が1つ多い図形を順につなげていきます。反対側まで届いたら防御ラインが完成してクリアです。</p>
+        <p>降ってくる図形を動かして下に溜まらないようにしましょう＜出っ張りの数が同じ図形同士が触れれば消える＞<br>防御ラインを作りましょう＜左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作る。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いたらクリア＞</p>
         <div class="tutorial-box" aria-label="チュートリアルデモ">
           <p class="tutorial-label">以下のボタンから動きの様子が見られます</p>
           <div class="tutorial" id="tutorial">
@@ -521,7 +521,7 @@
     };
 
     const introTitle = "BLOCKADE";
-    const introText = "降ってくる図形を動かして下に溜まらないようにしましょう。LINEを超えたらゲームオーバー。防御ラインをつくるには、左右どちらかのラック（棚）に図形を置いてベースを作り、次に出っ張り数が1つ多い図形を順につなげていきます。反対側まで届いたら防御ラインが完成してクリアです。";
+    const introText = "降ってくる図形を動かして下に溜まらないようにしましょう＜出っ張りの数が同じ図形同士が触れれば消える＞<br>防御ラインを作りましょう＜左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作る。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いたらクリア＞";
 
     const state = {
       width: 0,
@@ -862,7 +862,7 @@
       state.clearPulse = 0;
       state.flash = 0;
       message.querySelector("h1").textContent = introTitle;
-      message.querySelector("p").textContent = introText;
+      message.querySelector("p").innerHTML = introText;
       startButton.textContent = "スタート";
       resultMeta.classList.add("hidden");
       resultMeta.textContent = "";
