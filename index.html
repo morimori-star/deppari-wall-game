@@ -146,13 +146,13 @@
     .message {
       position: absolute;
       left: 50%;
-      top: 50%;
+      top: 74px;
       width: min(86%, 430px);
-      transform: translate(-50%, -50%);
-      padding: 24px;
+      transform: translateX(-50%);
+      padding: 18px 20px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.84);
       box-shadow: 0 18px 60px rgba(40, 67, 70, 0.2);
       text-align: center;
       backdrop-filter: blur(18px);
@@ -160,7 +160,7 @@
 
     .message h1 {
       margin: 0 0 8px;
-      font-size: clamp(26px, 7vw, 46px);
+      font-size: clamp(26px, 6vw, 42px);
       letter-spacing: 0;
       line-height: 1.02;
     }
@@ -249,6 +249,17 @@
         padding: 6px 9px;
         font-size: 13px;
       }
+
+      .message {
+        top: calc(max(9px, env(safe-area-inset-top)) + 56px);
+        width: min(92%, 380px);
+        padding: 16px;
+      }
+
+      .message p {
+        font-size: 13px;
+        line-height: 1.5;
+      }
     }
   </style>
 </head>
@@ -268,8 +279,8 @@
         </div>
       </div>
       <div class="message" id="message">
-        <h1>でっぱり城壁</h1>
-        <p>左右どちらかの棚に図形を置いて城壁を作ります。次は出っ張り数が1つ多い図形だけがくっつき、反対側まで届くとクリアです。</p>
+        <h1>BLOCKADE</h1>
+        <p>左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作ります。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いて防御ラインが完成するとクリアです</p>
         <div class="difficulty" aria-label="難易度">
           <button type="button" data-difficulty="easy">EASY</button>
           <button type="button" data-difficulty="normal" class="selected">NORMAL</button>
@@ -330,6 +341,9 @@
         doubleChance: 0.38
       }
     };
+
+    const introTitle = "BLOCKADE";
+    const introText = "左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作ります。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いて防御ラインが完成するとクリアです";
 
     const state = {
       width: 0,
@@ -481,8 +495,8 @@
       state.gameOver = false;
       state.cleared = false;
       state.flash = 0;
-      message.querySelector("h1").textContent = "でっぱり城壁";
-      message.querySelector("p").textContent = "左右どちらかの棚に図形を置いて城壁を作ります。次は出っ張り数が1つ多い図形だけがくっつき、反対側まで届くとクリアです。";
+      message.querySelector("h1").textContent = introTitle;
+      message.querySelector("p").textContent = introText;
       startButton.textContent = "スタート";
       pauseButton.textContent = "Ⅱ";
       for (let i = 0; i < 9; i += 1) {
