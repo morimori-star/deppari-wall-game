@@ -626,6 +626,13 @@
       return piece;
     }
 
+    function createDemoWallPiece(lobes, x, y) {
+      const piece = createStaticDemoPiece(lobes, x, y);
+      piece.isWall = true;
+      piece.wallDirection = 1;
+      return piece;
+    }
+
     function demoPieceWithLobes(lobes, x, y) {
       const piece = createDemoPiece(x, y);
       piece.lobes = lobes;
@@ -644,16 +651,22 @@
         state.demoPieces.push(demoPieceWithLobes(5, state.width * 0.58, y - 18));
       } else if (mode === "rack") {
         const piece = demoPieceWithLobes(4, 54, wallY() - 76);
-        piece.vx = 6;
+        piece.vx = 0;
+        piece.demoTargetX = shelfTarget("left", piece).x;
+        piece.demoTargetY = shelfTarget("left", piece).y;
+        piece.demoSnapToWall = true;
         state.demoPieces.push(piece);
       } else if (mode === "chain") {
         for (let i = 0; i < 4; i += 1) {
           const lobes = 3 + i;
-          const piece = createStaticDemoPiece(lobes, 54 + i * 52, wallY());
+          const piece = createDemoWallPiece(lobes, 54 + i * 52, wallY());
           state.demoPieces.push(piece);
         }
         const next = demoPieceWithLobes(7, 54 + 4 * 52, wallY() - 84);
         next.vx = 0;
+        next.demoTargetX = 54 + 4 * 52;
+        next.demoTargetY = wallY();
+        next.demoSnapToWall = true;
         state.demoPieces.push(next);
       }
     }
@@ -1165,6 +1178,20 @@
 
       for (const piece of state.demoPieces) {
         if (piece.demoStatic) continue;
+        if (piece.demoSnapToWall) {
+          piece.x += (piece.demoTargetX - piece.x) * Math.min(1, dt * 4.4);
+          piece.y += (piece.demoTargetY - piece.y) * Math.min(1, dt * 4.4);
+          piece.vx = 0;
+          piece.vy = 0;
+          if (Math.hypot(piece.x - piece.demoTargetX, piece.y - piece.demoTargetY) < 2.5) {
+            piece.x = piece.demoTargetX;
+            piece.y = piece.demoTargetY;
+            piece.demoStatic = true;
+            piece.isWall = true;
+            piece.wallDirection = 1;
+          }
+          continue;
+        }
         const gravity = state.demoMode === "chain" ? 92 : 185;
         const maxVy = state.demoMode === "chain" ? 86 : 132;
         piece.vy = Math.min(maxVy, piece.vy + gravity * dt);
@@ -1187,7 +1214,9 @@
 
       resolveDemoCollisions();
       resolveDemoCollisions();
-      removeDemoMatches();
+      if (state.demoMode === "match") {
+        removeDemoMatches();
+      }
 
       const pileTooHigh = state.demoPieces.length >= 18 && state.demoPieces.some((piece) => (
         piece.y > state.height * 0.45 &&
@@ -1470,6 +1499,36 @@
       ctx.restore();
     }
 
+    function drawDemoProgressBand() {
+      if (state.running || state.gameOver || state.cleared || state.demoMode === "match" || !state.demoPieces.length) return;
+      const wallPieces = state.demoPieces.filter((piece) => piece.isWall);
+      if (!wallPieces.length) return;
+      const y = wallY();
+      const startX = 0;
+      const progressX = Math.max(...wallPieces.map((piece) => piece.x));
+      const bandWidth = Math.max(58, pieceRadius(10) * 2.35);
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(37, 49, 61, 0.12)";
+      ctx.lineWidth = bandWidth;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(state.width, y);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(229, 170, 38, 0.42)";
+      ctx.beginPath();
+      ctx.moveTo(startX, y);
+      ctx.lineTo(progressX, y);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.62)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(startX, y);
+      ctx.lineTo(progressX, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function drawWallConnections() {
       if (!state.wallPieces.length) return;
       const first = state.wallPieces[0];
@@ -1590,6 +1649,7 @@
     function render() {
       drawBackground();
       if (!state.running && !state.gameOver && !state.cleared) {
+        drawDemoProgressBand();
         for (const piece of state.demoGhosts) {
           ctx.save();
           ctx.globalAlpha = piece.alpha;
