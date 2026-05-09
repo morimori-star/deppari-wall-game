@@ -156,6 +156,13 @@
       box-shadow: 0 18px 60px rgba(40, 67, 70, 0.2);
       text-align: center;
       backdrop-filter: blur(18px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .message.tutorial-demo {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -10px) scale(0.98);
     }
 
     .message h1 {
@@ -281,6 +288,26 @@
       cursor: pointer;
     }
 
+    .demo-exit {
+      position: absolute;
+      top: 72px;
+      left: 50%;
+      z-index: 3;
+      min-height: 38px;
+      padding: 0 18px;
+      border: 1px solid rgba(37, 49, 61, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--accent-strong);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(40, 67, 70, 0.16);
+      transform: translateX(-50%);
+      backdrop-filter: blur(16px);
+    }
+
     .start:hover {
       background: var(--accent-strong);
     }
@@ -351,6 +378,10 @@
         padding: 16px;
       }
 
+      .demo-exit {
+        top: calc(max(9px, env(safe-area-inset-top)) + 58px);
+      }
+
       .message p {
         font-size: 13px;
         line-height: 1.5;
@@ -402,6 +433,7 @@
           <button class="secondary hidden" id="sameRetry">同じ難易度で再挑戦</button>
         </div>
       </div>
+      <button class="demo-exit hidden" id="demoExit">戻る</button>
     </section>
   </main>
 
@@ -416,6 +448,7 @@
     const resultMeta = document.querySelector("#resultMeta");
     const startButton = document.querySelector("#start");
     const sameRetryButton = document.querySelector("#sameRetry");
+    const demoExitButton = document.querySelector("#demoExit");
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
     const difficultyButtons = document.querySelectorAll("[data-difficulty]");
@@ -471,6 +504,7 @@
       demoMode: "match",
       demoSpawnTimer: 0,
       demoCycleTime: 0,
+      tutorialFocus: false,
       pieces: [],
       wallPieces: [],
       particles: [],
@@ -697,11 +731,13 @@
         const x = state.width * 0.52;
         const y = demoActionY();
         const lower = demoPieceWithLobes(5, x, y);
-        const upper = demoPieceWithLobes(5, x - 8, y - lower.radius * 3.1);
+        const upper = demoPieceWithLobes(5, x - 8, y - lower.radius * 5.2);
         lower.vx = 0;
-        upper.vx = 3;
-        lower.vy = 62;
-        upper.vy = 116;
+        upper.vx = 2;
+        lower.vy = 52;
+        upper.vy = 92;
+        lower.demoNoGravity = true;
+        upper.demoNoGravity = true;
         state.demoPieces.push(lower, upper);
       } else if (mode === "rack") {
         const piece = demoPieceWithLobes(4, 54, demoLineY() - 76);
@@ -776,6 +812,7 @@
       unlockAudio();
       playSound("start");
       const settings = difficultySettings[state.difficulty];
+      exitTutorialDemo(false);
       state.demoPieces = [];
       state.demoGhosts = [];
       state.pieces = [];
@@ -817,6 +854,7 @@
     }
 
     function showResult(title, text) {
+      exitTutorialDemo(false);
       message.querySelector("h1").textContent = title;
       message.querySelector("p").textContent = text;
       resultMeta.textContent = `${difficultySettings[state.difficulty].label} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
@@ -824,6 +862,21 @@
       startButton.textContent = "難易度を選んで再挑戦";
       sameRetryButton.classList.remove("hidden");
       message.classList.remove("hidden");
+    }
+
+    function enterTutorialDemo(mode) {
+      state.tutorialFocus = true;
+      message.classList.add("tutorial-demo");
+      demoExitButton.classList.remove("hidden");
+      resetDemo(mode);
+    }
+
+    function exitTutorialDemo(restartOpenDemo = true) {
+      state.tutorialFocus = false;
+      message.classList.remove("tutorial-demo");
+      demoExitButton.classList.add("hidden");
+      tutorialButtons.forEach((item) => item.classList.remove("active"));
+      if (restartOpenDemo) resetDemo("open");
     }
 
     function updateDifficultyButtons() {
@@ -1793,8 +1846,11 @@
       button.addEventListener("click", () => {
         if (state.running) return;
         tutorialButtons.forEach((item) => item.classList.toggle("active", item === button));
-        resetDemo(button.dataset.demo);
+        enterTutorialDemo(button.dataset.demo);
       });
+    });
+    demoExitButton.addEventListener("click", () => {
+      exitTutorialDemo(true);
     });
     pauseButton.addEventListener("click", () => {
       if (!state.running || state.gameOver) return;
