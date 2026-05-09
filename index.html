@@ -734,8 +734,8 @@
         const upper = demoPieceWithLobes(5, x - 8, y - lower.radius * 5.2);
         lower.vx = 0;
         upper.vx = 2;
-        lower.vy = 52;
-        upper.vy = 92;
+        lower.vy = 50;
+        upper.vy = 90;
         lower.demoNoGravity = true;
         upper.demoNoGravity = true;
         state.demoPieces.push(lower, upper);
@@ -1347,10 +1347,9 @@
         piece.y > state.height * 0.45 &&
         piece.y - piece.radius <= dangerLineY() + 16
       ));
-      const openDemoSettled = state.demoMode === "open" && state.demoCycleTime >= 7.5 && state.demoPieces.some((piece) => (
-        piece.y + piece.radius >= floorY() - 2
-      ));
-      if (pileTooHigh || state.demoPieces.length > 26 || openDemoSettled) {
+      const openDemoShouldFade = state.demoMode === "open" && state.demoCycleTime >= 6.4;
+      const rackDemoShouldFade = state.demoMode === "rack" && state.demoCycleTime >= 2.8 && state.demoPieces.some((piece) => piece.isWall);
+      if (pileTooHigh || state.demoPieces.length > 26 || openDemoShouldFade || rackDemoShouldFade) {
         fadeOutDemoPieces();
         state.demoSpawnTimer = 260;
         state.demoCycleTime = 0;
@@ -1423,21 +1422,12 @@
         for (let j = i + 1; j < state.demoPieces.length; j += 1) {
           const b = state.demoPieces[j];
           if (a.lobes !== b.lobes) continue;
-          const matchPadding = state.demoMode === "match" ? 34 : 14;
+          const matchPadding = state.demoMode === "match" ? 2 : 14;
           if (Math.hypot(a.x - b.x, a.y - b.y) <= touchDistance(a, b) + matchPadding) {
             if (state.demoMode === "match") {
-              const top = a.y <= b.y ? a : b;
-              const bottom = top === a ? b : a;
-              const displayGap = touchDistance(a, b) * 0.72;
-              top.x += (bottom.x - top.x) * 0.34;
-              top.y += (bottom.y - displayGap - top.y) * 0.34;
               a.demoMatchHold = (a.demoMatchHold || 0) + dt;
               b.demoMatchHold = (b.demoMatchHold || 0) + dt;
-              a.vx *= 0.4;
-              b.vx *= 0.4;
-              a.vy *= 0.55;
-              b.vy *= 0.55;
-              if (Math.min(a.demoMatchHold, b.demoMatchHold) < 0.85) continue;
+              if (Math.min(a.demoMatchHold, b.demoMatchHold) < 0.18) continue;
             }
             matched.add(a.id);
             matched.add(b.id);
@@ -1511,7 +1501,12 @@
       state.demoGhosts = state.demoGhosts.filter((piece) => {
         piece.age += dt;
         piece.alpha = Math.max(0, 1 - piece.age / piece.life);
-        piece.y -= 6 * dt;
+        if (!piece.demoStatic) {
+          piece.vy = Math.min(150, (piece.vy || 0) + 90 * dt);
+          piece.x += (piece.vx || 0) * dt;
+          piece.y += piece.vy * dt;
+          piece.angle += (piece.spin || 0) * dt;
+        }
         return piece.age < piece.life;
       });
 
