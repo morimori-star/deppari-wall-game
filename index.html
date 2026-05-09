@@ -236,6 +236,14 @@
       font-size: 11px;
       font-weight: 800;
       line-height: 1.35;
+      cursor: pointer;
+    }
+
+    .tutorial-step.active {
+      border-color: rgba(14, 143, 143, 0.55);
+      background: rgba(255, 255, 255, 0.86);
+      color: var(--ink);
+      box-shadow: inset 0 -3px 0 rgba(14, 143, 143, 0.16);
     }
 
     .tutorial-icon {
@@ -379,9 +387,9 @@
         <h1>BLOCKADE</h1>
         <p>左右どちらかのラック（棚）に図形を置いて防御ラインのベースを作ります。次に出っ張り数が1つ多い図形を順につなげていき、反対側まで届いて防御ラインが完成するとクリアです</p>
         <div class="tutorial" id="tutorial">
-          <div class="tutorial-step"><span class="tutorial-icon">3=3</span>同じ出っ張り数が触れると消える</div>
-          <div class="tutorial-step"><span class="tutorial-icon">RACK</span>棚に置いて防御ラインを始める</div>
-          <div class="tutorial-step"><span class="tutorial-icon">+1</span>次の数字を順につなげて完成</div>
+          <div class="tutorial-step active" data-demo="match"><span class="tutorial-icon">3=3</span>同じ出っ張り数が触れると消える</div>
+          <div class="tutorial-step" data-demo="rack"><span class="tutorial-icon">RACK</span>棚に置いて防御ラインを始める</div>
+          <div class="tutorial-step" data-demo="chain"><span class="tutorial-icon">+1</span>次の数字を順につなげて完成</div>
         </div>
         <div class="difficulty" aria-label="難易度">
           <button type="button" data-difficulty="easy">EASY</button>
@@ -411,6 +419,7 @@
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
     const difficultyButtons = document.querySelectorAll("[data-difficulty]");
+    const tutorialButtons = document.querySelectorAll("[data-demo]");
 
     const colors = {
       3: ["#f06a59", "#9a3029"],
@@ -458,6 +467,8 @@
       height: 0,
       ratio: 1,
       demoPieces: [],
+      demoGhosts: [],
+      demoMode: "match",
       demoSpawnTimer: 0,
       pieces: [],
       wallPieces: [],
@@ -602,6 +613,51 @@
       return piece;
     }
 
+    function createStaticDemoPiece(lobes, x, y) {
+      const piece = createPiece(x, y);
+      piece.lobes = lobes;
+      piece.radius = pieceRadius(lobes);
+      piece.vx = 0;
+      piece.vy = 0;
+      piece.spin = 0;
+      piece.angle = 0;
+      piece.demoStatic = true;
+      piece.demo = true;
+      return piece;
+    }
+
+    function demoPieceWithLobes(lobes, x, y) {
+      const piece = createDemoPiece(x, y);
+      piece.lobes = lobes;
+      piece.radius = pieceRadius(lobes);
+      return piece;
+    }
+
+    function resetDemo(mode = state.demoMode) {
+      state.demoMode = mode;
+      state.demoPieces = [];
+      state.demoGhosts = [];
+      state.demoSpawnTimer = 80;
+      if (mode === "match") {
+        const y = state.height * 0.24;
+        state.demoPieces.push(demoPieceWithLobes(5, state.width * 0.42, y));
+        state.demoPieces.push(demoPieceWithLobes(5, state.width * 0.58, y - 18));
+      } else if (mode === "rack") {
+        const piece = demoPieceWithLobes(4, 54, wallY() - 76);
+        piece.vx = 6;
+        state.demoPieces.push(piece);
+      } else if (mode === "chain") {
+        for (let i = 0; i < 4; i += 1) {
+          const lobes = 3 + i;
+          const piece = createStaticDemoPiece(lobes, 54 + i * 52, wallY());
+          state.demoPieces.push(piece);
+        }
+        const next = demoPieceWithLobes(7, 54 + 4 * 52, wallY() - 84);
+        next.vx = 0;
+        state.demoPieces.push(next);
+      }
+    }
+
     function dangerLineY() {
       const ratio = state.width <= 720 ? 0.58 : 0.62;
       return Math.max(160, state.height * ratio);
@@ -662,6 +718,7 @@
       playSound("start");
       const settings = difficultySettings[state.difficulty];
       state.demoPieces = [];
+      state.demoGhosts = [];
       state.pieces = [];
       state.wallPieces = [];
       state.particles = [];
@@ -1101,13 +1158,16 @@
       if (!shouldShowDemo) return;
 
       state.demoSpawnTimer -= dt * 1000;
-      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22) {
+      if (state.demoSpawnTimer <= 0 && state.demoPieces.length < 22 && state.demoMode === "match") {
         state.demoPieces.push(createDemoPiece());
         state.demoSpawnTimer = 360 + Math.random() * 260;
       }
 
       for (const piece of state.demoPieces) {
-        piece.vy = Math.min(132, piece.vy + 185 * dt);
+        if (piece.demoStatic) continue;
+        const gravity = state.demoMode === "chain" ? 92 : 185;
+        const maxVy = state.demoMode === "chain" ? 86 : 132;
+        piece.vy = Math.min(maxVy, piece.vy + gravity * dt);
         piece.vx *= 0.997;
         piece.x += piece.vx * dt;
         piece.y += piece.vy * dt;
@@ -1134,21 +1194,27 @@
         piece.y - piece.radius <= dangerLineY() + 16
       ));
       if (pileTooHigh || state.demoPieces.length > 26) {
-        for (const piece of state.demoPieces) {
-          state.particles.push({
-            x: piece.x,
-            y: piece.y,
-            vx: 0,
-            vy: -8,
-            life: 0.42,
-            age: 0,
-            size: piece.radius * 1.1,
-            fill: "rgba(255, 255, 255, 0.42)"
-          });
-        }
-        state.demoPieces = [];
+        fadeOutDemoPieces();
         state.demoSpawnTimer = 260;
       }
+    }
+
+    function fadeOutDemoPieces(ids = null) {
+      const idSet = ids ? new Set(ids) : null;
+      const fading = idSet
+        ? state.demoPieces.filter((piece) => idSet.has(piece.id))
+        : state.demoPieces;
+      for (const piece of fading) {
+        state.demoGhosts.push({
+          ...piece,
+          age: 0,
+          life: 0.42,
+          alpha: 1
+        });
+      }
+      state.demoPieces = idSet
+        ? state.demoPieces.filter((piece) => !idSet.has(piece.id))
+        : [];
     }
 
     function resolveDemoCollisions() {
@@ -1161,13 +1227,18 @@
           const distance = Math.max(0.001, Math.hypot(dx, dy));
           const minDistance = touchDistance(a, b);
           if (distance < minDistance) {
+            if (a.demoStatic && b.demoStatic) continue;
             const push = (minDistance - distance) * 0.5;
             const nx = dx / distance;
             const ny = dy / distance;
-            a.x -= nx * push;
-            a.y -= ny * push;
-            b.x += nx * push;
-            b.y += ny * push;
+            if (!a.demoStatic) {
+              a.x -= nx * (b.demoStatic ? push : push * 0.5);
+              a.y -= ny * (b.demoStatic ? push : push * 0.5);
+            }
+            if (!b.demoStatic) {
+              b.x += nx * (a.demoStatic ? push : push * 0.5);
+              b.y += ny * (a.demoStatic ? push : push * 0.5);
+            }
             a.vx *= 0.72;
             b.vx *= 0.72;
             a.vy *= verticalDamping(a, b);
@@ -1201,9 +1272,7 @@
         }
       }
       if (!matched.size) return;
-      const removed = state.demoPieces.filter((piece) => matched.has(piece.id));
-      removed.forEach(spawnBurst);
-      state.demoPieces = state.demoPieces.filter((piece) => !matched.has(piece.id));
+      fadeOutDemoPieces(matched);
     }
 
     function update(dt) {
@@ -1262,6 +1331,13 @@
     }
 
     function updateEffects(dt) {
+      state.demoGhosts = state.demoGhosts.filter((piece) => {
+        piece.age += dt;
+        piece.alpha = Math.max(0, 1 - piece.age / piece.life);
+        piece.y -= 6 * dt;
+        return piece.age < piece.life;
+      });
+
       state.particles = state.particles.filter((particle) => {
         particle.age += dt;
         particle.x += particle.vx * dt;
@@ -1514,12 +1590,15 @@
     function render() {
       drawBackground();
       if (!state.running && !state.gameOver && !state.cleared) {
-        ctx.save();
-        ctx.globalAlpha = 0.52;
+        for (const piece of state.demoGhosts) {
+          ctx.save();
+          ctx.globalAlpha = piece.alpha;
+          drawPiece(piece);
+          ctx.restore();
+        }
         for (const piece of state.demoPieces) {
           drawPiece(piece);
         }
-        ctx.restore();
       }
       drawWallConnections();
       for (const piece of state.pieces) {
@@ -1555,6 +1634,13 @@
         updateHud();
       });
     });
+    tutorialButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (state.running) return;
+        tutorialButtons.forEach((item) => item.classList.toggle("active", item === button));
+        resetDemo(button.dataset.demo);
+      });
+    });
     pauseButton.addEventListener("click", () => {
       if (!state.running || state.gameOver) return;
       state.paused = !state.paused;
@@ -1568,6 +1654,7 @@
 
     resize();
     updateDifficultyButtons();
+    resetDemo("match");
     render();
     requestAnimationFrame(loop);
   </script>
