@@ -342,7 +342,7 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
       margin: 0 auto 10px;
-      max-width: 260px;
+      max-width: 360px;
     }
 
     .difficulty button {
@@ -364,8 +364,10 @@
       background: rgba(255, 255, 255, 0.68);
       color: var(--muted);
       font: inherit;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 900;
+      line-height: 1.25;
+      padding: 5px 7px;
       cursor: pointer;
     }
 
@@ -483,8 +485,8 @@
           <button type="button" data-difficulty="hard">HARD</button>
         </div>
         <div class="rule-select" aria-label="消えるルール">
-          <button type="button" data-rule="same" class="selected">同じ数ルール</button>
-          <button type="button" data-rule="multiple3">3の倍数ルール</button>
+          <button type="button" data-rule="same" class="selected">通常モード(N&N)</button>
+          <button type="button" data-rule="multiple3">合わせて3の倍数の時に消える3の倍数モード（3N）</button>
         </div>
         <div class="result-meta hidden" id="resultMeta"></div>
         <div class="message-actions">
