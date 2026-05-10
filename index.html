@@ -337,6 +337,14 @@
       max-width: 320px;
     }
 
+    .rule-select {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin: 0 auto 10px;
+      max-width: 260px;
+    }
+
     .difficulty button {
       min-height: 38px;
       border: 1px solid var(--line);
@@ -349,11 +357,30 @@
       cursor: pointer;
     }
 
+    .rule-select button {
+      min-height: 34px;
+      border: 1px solid rgba(14, 143, 143, 0.22);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
     .difficulty button.selected {
       border-color: rgba(14, 143, 143, 0.45);
       background: var(--accent);
       color: #fff;
       box-shadow: 0 8px 18px rgba(14, 143, 143, 0.2);
+    }
+
+    .rule-select button.selected {
+      border-color: rgba(14, 143, 143, 0.45);
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 7px 16px rgba(14, 143, 143, 0.18);
     }
 
     .hidden {
@@ -455,10 +482,14 @@
           <button type="button" data-difficulty="normal" class="selected">NORMAL</button>
           <button type="button" data-difficulty="hard">HARD</button>
         </div>
+        <div class="rule-select" aria-label="消えるルール">
+          <button type="button" data-rule="same" class="selected">同じ数ルール</button>
+          <button type="button" data-rule="multiple3">3の倍数ルール</button>
+        </div>
         <div class="result-meta hidden" id="resultMeta"></div>
         <div class="message-actions">
           <button class="start" id="start">スタート</button>
-          <button class="secondary hidden" id="sameRetry">同じ難易度で再挑戦</button>
+          <button class="secondary hidden" id="sameRetry">同じ設定で再挑戦</button>
         </div>
       </div>
       <button class="demo-exit hidden" id="demoExit">戻る</button>
@@ -480,6 +511,7 @@
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
     const difficultyButtons = document.querySelectorAll("[data-difficulty]");
+    const ruleButtons = document.querySelectorAll("[data-rule]");
     const tutorialBox = document.querySelector(".tutorial-box");
     const tutorialButtons = document.querySelectorAll("[data-demo]");
 
@@ -548,6 +580,7 @@
       chain: 0,
       chainTimer: 0,
       difficulty: "normal",
+      matchRule: "same",
       level: 1,
       running: false,
       paused: false,
@@ -888,9 +921,9 @@
       message.querySelector("h1").textContent = title;
       message.querySelector("p").textContent = text;
       tutorialBox.classList.add("hidden");
-      resultMeta.textContent = `${difficultySettings[state.difficulty].label} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
+      resultMeta.textContent = `${difficultySettings[state.difficulty].label} / ${ruleLabel()} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
       resultMeta.classList.remove("hidden");
-      startButton.textContent = "難易度を選んで再挑戦";
+      startButton.textContent = "設定を選んで再挑戦";
       sameRetryButton.classList.remove("hidden");
       message.classList.remove("hidden");
     }
@@ -914,6 +947,16 @@
     function updateDifficultyButtons() {
       difficultyButtons.forEach((button) => {
         button.classList.toggle("selected", button.dataset.difficulty === state.difficulty);
+      });
+    }
+
+    function ruleLabel() {
+      return state.matchRule === "multiple3" ? "3の倍数" : "同じ数";
+    }
+
+    function updateRuleButtons() {
+      ruleButtons.forEach((button) => {
+        button.classList.toggle("selected", button.dataset.rule === state.matchRule);
       });
     }
 
@@ -1140,6 +1183,13 @@
       updateHud();
     }
 
+    function shouldRemoveTogether(a, b) {
+      if (state.matchRule === "multiple3") {
+        return (a.lobes + b.lobes) % 3 === 0;
+      }
+      return a.lobes === b.lobes;
+    }
+
     function removeMatches() {
       const matched = new Set();
       for (let i = 0; i < state.pieces.length; i += 1) {
@@ -1147,7 +1197,7 @@
         if (a.matched || a.isWall) continue;
         for (let j = i + 1; j < state.pieces.length; j += 1) {
           const b = state.pieces[j];
-          if (b.matched || b.isWall || a.lobes !== b.lobes) continue;
+          if (b.matched || b.isWall || !shouldRemoveTogether(a, b)) continue;
           const distance = Math.hypot(a.x - b.x, a.y - b.y);
           if (distance <= touchDistance(a, b) + 16) {
             matched.add(a.id);
@@ -1910,6 +1960,13 @@
         updateHud();
       });
     });
+    ruleButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (state.running && !state.gameOver && !state.cleared) return;
+        state.matchRule = button.dataset.rule;
+        updateRuleButtons();
+      });
+    });
     tutorialButtons.forEach((button) => {
       button.addEventListener("click", () => {
         if (state.running) return;
@@ -1933,6 +1990,7 @@
 
     resize();
     updateDifficultyButtons();
+    updateRuleButtons();
     resetDemo("open");
     render();
     requestAnimationFrame(loop);
