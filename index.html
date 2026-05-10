@@ -3,7 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e8f8f">
+  <meta name="application-name" content="BLOCKADE">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="BLOCKADE">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>BLOCKADE</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
   <style>
     :root {
       color-scheme: light;
@@ -2045,6 +2054,13 @@
     resetDemo("open");
     render();
     requestAnimationFrame(loop);
+  </script>
+  <script>
+    if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>
