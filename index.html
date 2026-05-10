@@ -138,6 +138,11 @@
       cursor: pointer;
     }
 
+    #restart {
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
     .button:hover {
       background: rgba(255, 255, 255, 0.94);
       transform: translateY(-1px);
@@ -466,7 +471,7 @@
         </div>
         <div class="controls">
           <button class="button" id="pause" title="一時停止" aria-label="一時停止">Ⅱ</button>
-          <button class="button" id="restart" title="やり直し" aria-label="やり直し">↻</button>
+          <button class="button" id="restart" title="TOPに戻る" aria-label="TOPに戻る">TOP</button>
         </div>
       </div>
       <div class="message" id="message">
@@ -514,6 +519,7 @@
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
     const difficultyButtons = document.querySelectorAll("[data-difficulty]");
+    const ruleSelect = document.querySelector(".rule-select");
     const ruleButtons = document.querySelectorAll("[data-rule]");
     const tutorialBox = document.querySelector(".tutorial-box");
     const tutorialButtons = document.querySelectorAll("[data-demo]");
@@ -901,6 +907,7 @@
       message.querySelector("h1").textContent = introTitle;
       message.querySelector("p").innerHTML = introText;
       tutorialBox.classList.remove("hidden");
+      ruleSelect.classList.remove("hidden");
       startButton.textContent = "スタート";
       resultMeta.classList.add("hidden");
       resultMeta.textContent = "";
@@ -924,11 +931,44 @@
       message.querySelector("h1").textContent = title;
       message.querySelector("p").textContent = text;
       tutorialBox.classList.add("hidden");
+      ruleSelect.classList.add("hidden");
       resultMeta.textContent = `${difficultySettings[state.difficulty].label} / ${ruleLabel()} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
       resultMeta.classList.remove("hidden");
-      startButton.textContent = "設定を選んで再挑戦";
+      startButton.textContent = "難易度を選んで再挑戦";
       sameRetryButton.classList.remove("hidden");
       message.classList.remove("hidden");
+    }
+
+    function showTop() {
+      state.running = false;
+      state.paused = false;
+      state.gameOver = false;
+      state.cleared = false;
+      state.dragging = null;
+      state.pieces = [];
+      state.wallPieces = [];
+      state.particles = [];
+      state.score = 0;
+      state.chain = 0;
+      state.chainTimer = 0;
+      state.level = difficultySettings[state.difficulty].initialLevel;
+      state.clearPulse = 0;
+      state.flash = 0;
+      canvas.classList.remove("dragging");
+      pauseButton.textContent = "Ⅱ";
+      message.querySelector("h1").textContent = introTitle;
+      message.querySelector("p").innerHTML = introText;
+      tutorialBox.classList.remove("hidden");
+      ruleSelect.classList.remove("hidden");
+      resultMeta.classList.add("hidden");
+      resultMeta.textContent = "";
+      startButton.textContent = "スタート";
+      sameRetryButton.classList.add("hidden");
+      message.classList.remove("hidden");
+      updateDifficultyButtons();
+      updateRuleButtons();
+      updateHud();
+      resetDemo("open");
     }
 
     function enterTutorialDemo(mode) {
@@ -943,6 +983,7 @@
       message.classList.remove("tutorial-demo");
       demoExitButton.classList.add("hidden");
       tutorialBox.classList.remove("hidden");
+      ruleSelect.classList.remove("hidden");
       tutorialButtons.forEach((item) => item.classList.remove("active"));
       if (restartOpenDemo) resetDemo("open");
     }
@@ -1948,7 +1989,7 @@
 
     startButton.addEventListener("click", resetGame);
     sameRetryButton.addEventListener("click", resetGame);
-    restartButton.addEventListener("click", resetGame);
+    restartButton.addEventListener("click", showTop);
     document.addEventListener("pointerdown", unlockAudio, { once: true });
     document.addEventListener("touchstart", unlockAudio, { once: true });
     document.addEventListener("click", unlockAudio, { once: true });
