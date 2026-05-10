@@ -480,6 +480,7 @@
     const pauseButton = document.querySelector("#pause");
     const restartButton = document.querySelector("#restart");
     const difficultyButtons = document.querySelectorAll("[data-difficulty]");
+    const tutorialBox = document.querySelector(".tutorial-box");
     const tutorialButtons = document.querySelectorAll("[data-demo]");
 
     const colors = {
@@ -863,6 +864,7 @@
       state.flash = 0;
       message.querySelector("h1").textContent = introTitle;
       message.querySelector("p").innerHTML = introText;
+      tutorialBox.classList.remove("hidden");
       startButton.textContent = "スタート";
       resultMeta.classList.add("hidden");
       resultMeta.textContent = "";
@@ -885,6 +887,7 @@
       exitTutorialDemo(false);
       message.querySelector("h1").textContent = title;
       message.querySelector("p").textContent = text;
+      tutorialBox.classList.add("hidden");
       resultMeta.textContent = `${difficultySettings[state.difficulty].label} / SCORE ${state.score} / WALL ${Math.floor(wallProgress() * 100)}%`;
       resultMeta.classList.remove("hidden");
       startButton.textContent = "難易度を選んで再挑戦";
@@ -903,6 +906,7 @@
       state.tutorialFocus = false;
       message.classList.remove("tutorial-demo");
       demoExitButton.classList.add("hidden");
+      tutorialBox.classList.remove("hidden");
       tutorialButtons.forEach((item) => item.classList.remove("active"));
       if (restartOpenDemo) resetDemo("open");
     }
@@ -1611,7 +1615,7 @@
         spawnBurst(piece);
       }
       canvas.classList.remove("dragging");
-      showResult("ゲームクリア！", "防御ラインが反対側のラックまで完成しました。次は難易度を上げて、より早い完成を狙えます。");
+      showResult("ゲームクリア！", "防御ラインが反対側のラックまで届いて完成しました！　次は難易度を上げて挑戦してみませんか。");
     }
 
     function drawBackground() {
